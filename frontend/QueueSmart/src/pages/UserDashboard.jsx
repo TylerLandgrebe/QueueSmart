@@ -1,7 +1,7 @@
 function UserDashboard(){
 
     return(
-        <h1>THIS IS THE ADMIN DASHBOARD</h1>
+        <h1>THIS IS THE USER DASHBOARD</h1>
     )
 }
 

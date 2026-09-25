@@ -30,8 +30,19 @@ input[type=text], input[type=password] {
     box-sizing: border-box;
 }
 
-button { 
+.login-btn { 
     background-color: #04AA6D;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 50%;
+}
+
+.register-btn { 
+    background-color: #044faa;
     color: white;
     padding: 14px 20px;
     margin: 8px 0;
@@ -43,4 +54,13 @@ button {
 
 button:hover { 
     opacity: 0.8;
+}
+
+a { 
+    color: #343434;
+    text-decoration: underline;
+}
+
+a:hover { 
+    color: #0560a7;
 }
