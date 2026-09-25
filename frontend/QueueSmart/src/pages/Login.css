@@ -1,0 +1,46 @@
+
+
+.login-layout{
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+
+    min-height: 100vh;
+    background-color: #f1f0eb;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+.login-container { 
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+
+    font-family: 'Courier New', Courier, monospace;
+}
+
+input[type=text], input[type=password] {
+    width: 50%;
+    padding: 12px 20px;
+    margin: 8px 10px;
+    display: inline-block;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+button { 
+    background-color: #04AA6D;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 50%;
+}
+
+button:hover { 
+    opacity: 0.8;
+}
