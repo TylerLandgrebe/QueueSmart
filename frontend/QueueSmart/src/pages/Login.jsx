@@ -6,8 +6,10 @@ import './Login.css'
 function Login(){
     const navigate = useNavigate()
 
+    // Keep track of username/password info
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
+
     const [register, setRegister] = useState(false)
 
     //Temp login info for testing purposes
@@ -57,6 +59,7 @@ function Login(){
         changeForm();
     }
 
+    // Change between login and register page
     function changeForm(){
         setUsername("")
         setPassword("")

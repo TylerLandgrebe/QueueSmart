@@ -1,0 +1,87 @@
+.icon-bar{
+    width: 70px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #6624a9;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+
+.icon-bar a { 
+    position: relative;
+    display: block;
+    text-align: center;
+    padding: 16px;
+    transition: all 0.3s ease;
+    color: white;
+    font-size: 36px;
+}
+
+.tooltip { 
+    visibility: hidden;
+
+    position: absolute;
+    left: 90px;
+    top: 50%;
+    transform: translate(-50%);
+
+    background-color: #333;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 5px;
+
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.icon-bar a:hover .tooltip {
+    visibility: visible;
+}
+
+.icon-bar a:hover {
+    background-color: #000;
+}
+
+.active { 
+    background-color: #2d0758;
+}
+
+.profile-container {
+    position: relative;
+}
+
+.profile-menu {
+    position: absolute;
+    left: 72px;
+    bottom: 0;
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 20;
+}
+
+.profile-menu button{ 
+    display: block;
+    border: none;
+    background-color: white;
+}
+
+.profile-menu button:hover{
+    background-color: aliceblue;
+}
+
+.profile-button { 
+    width: 100%;
+    padding: 16px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 36px;
+    text-align: center;
+    cursor: pointer;
+}
