@@ -85,3 +85,19 @@
     text-align: center;
     cursor: pointer;
 }
+
+.rail-logout {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border: 0;
+    background: transparent;
+    color: white;
+    font-size: 36px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.rail-logout i { font-size: 36px; }
+.rail-logout:hover { background-color: #000; }
+.rail-logout:focus-visible { outline: 2px solid white; outline-offset: -4px; }

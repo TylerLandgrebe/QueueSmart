@@ -1,5 +1,4 @@
 import {NavLink} from 'react-router-dom'
-import {useState} from 'react'
 import { useNavigate } from 'react-router-dom'
 import './NavigationBar.css'
 
@@ -10,11 +9,11 @@ function NavigationBar( {userType} ){
         return isActive ? "active" : "";
     }
 
-    const [showProfile, setShowProfile] = useState(false);
     const navigate = useNavigate();
 
     function handleLogout(){
-        navigate("/");
+        sessionStorage.removeItem("queuesmart-session");
+        navigate("/", { replace: true });
     }
 
     return(
@@ -43,27 +42,9 @@ function NavigationBar( {userType} ){
                     <span className="tooltip">History</span>
                 </NavLink>
 
-                {/*Allow user to logout */}
-                <div 
-                    className="profile-container" 
-                    onMouseOver={() => setShowProfile(true)}
-                    onMouseOut={() => setShowProfile(false)}
-                >
-                    <button 
-                        type="button"
-                        className='profile-button' 
-                    >
-                        <i className="fa-solid fa-circle-user"></i>
-                    </button>
-
-                    {showProfile && (
-                        <div className="profile-menu">
-                            <button onClick={handleLogout}>
-                                Logout
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <button className="rail-logout" type="button" onClick={handleLogout}>
+                    <i className="fa-solid fa-circle-user" aria-hidden="true" />
+                </button>
                 
             </>
             )}
@@ -71,7 +52,7 @@ function NavigationBar( {userType} ){
             {/*Navigation bar for admin */}
             {userType === "admin" && ( 
             <>
-                <NavLink className={navClass} to="/admind-dashboard">
+                <NavLink className={navClass} to="/admin-dashboard">
                     <i className="fa fa-home" />
                     <span className="tooltip" >Dashboard</span>
                 </NavLink>
@@ -84,27 +65,9 @@ function NavigationBar( {userType} ){
                     <span className="tooltip">Appointments</span>
                 </NavLink>
                 
-                {/*Allow user to logout */}
-                <div 
-                    className="profile-container" 
-                    onMouseOver={() => setShowProfile(true)}
-                    onMouseOut={() => setShowProfile(false)}
-                >
-                    <button 
-                        type="button"
-                        className='profile-button' 
-                    >
-                        <i className="fa-solid fa-circle-user"></i>
-                    </button>
-
-                    {showProfile && (
-                        <div className="profile-menu">
-                            <button onClick={handleLogout}>
-                                Logout
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <button className="rail-logout" type="button" onClick={handleLogout}>
+                    <i className="fa-solid fa-circle-user" aria-hidden="true" />
+                </button>
             </>
             )}
         </div>

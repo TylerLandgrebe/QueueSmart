@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom"
 import './Login.css'
 
@@ -11,6 +11,12 @@ function Login(){
     const [password, setPassword] = useState("")
 
     const [register, setRegister] = useState(false)
+    const [message, setMessage] = useState(null)
+    const usernameInput = useRef(null)
+
+    useEffect(() => {
+        usernameInput.current?.focus()
+    }, [register])
 
     //Temp login info for testing purposes
     const [userLogin, setUserLogin] = useState([{
@@ -32,6 +38,7 @@ function Login(){
                 password == login.password
             ))
         ) {
+            sessionStorage.setItem("queuesmart-session", JSON.stringify({ username, role: "user" }))
             navigate('/user-dashboard')
         }
         else if (
@@ -40,10 +47,13 @@ function Login(){
                 password === login.password
             ))
         ) {
+            sessionStorage.setItem("queuesmart-session", JSON.stringify({ username, role: "admin" }))
             navigate('/admin-dashboard')
         }
         else {
-            alert("Invalid username or password. Try again")
+            setMessage({ type: "error", text: "Invalid username or password. Please try again." })
+            setPassword("")
+            usernameInput.current?.focus()
         }
     }
 
@@ -54,15 +64,17 @@ function Login(){
 
         let newLogin = {username: username, password: password};
         setUserLogin(userLogin => [...userLogin, newLogin]);
-        alert("Your account has been created");
-
-        changeForm();
+        setUsername("")
+        setPassword("")
+        setRegister(false)
+        setMessage({ type: "success", text: "Your account has been created. Sign in to continue." })
     }
 
     // Change between login and register page
     function changeForm(){
         setUsername("")
         setPassword("")
+        setMessage(null)
         setRegister(!register)
     }
 
@@ -75,10 +87,12 @@ function Login(){
             <form onSubmit = {handleLogin}>
                 <h2>Sign in to your account</h2>
                 <div className='login-container'>
+                    {message && <p className={`login-message ${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</p>}
 
                     <label htmlFor="uname"><b>Username</b></label>
                     <input 
                         id="uname" 
+                        ref={usernameInput}
                         type="text" 
                         placeholder="Enter Username" 
                         value={username}
@@ -108,10 +122,12 @@ function Login(){
             <form onSubmit = {handleRegister}>
                 <h2>Register your account</h2>
                 <div className='login-container'>
+                    {message && <p className={`login-message ${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</p>}
 
                     <label htmlFor="uname"><b>Username</b></label>
                     <input 
                         id="uname" 
+                        ref={usernameInput}
                         type="text" 
                         placeholder="Enter Username" 
                         value={username}

@@ -64,3 +64,24 @@ a {
 a:hover { 
     color: #0560a7;
 }
+
+.login-message {
+    box-sizing: border-box;
+    width: 50%;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 5px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    text-align: left;
+}
+
+.login-message.error {
+    background: #fff0ed;
+    color: #a33322;
+}
+
+.login-message.success {
+    background: #eaf5ed;
+    color: #28623a;
+}
