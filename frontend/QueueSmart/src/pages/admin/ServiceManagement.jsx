@@ -73,58 +73,68 @@ function ServiceManagement() {
         <div className="admin-content">
           <header className="admin-topline">
             <div>
-              <p className="admin-brand">QueueSmart · Admin Portal</p>
+              <p className="admin-brand">QueueSmart / Administration</p>
               <h1>Service management</h1>
-              <p className="admin-subtitle">Set up the services visitors can join and keep the details current.</p>
+              <p className="admin-subtitle">Add a service or update its details and priority.</p>
             </div>
-            <Link className="admin-button secondary" to="/admin-dashboard">← Back to dashboard</Link>
+            <Link className="admin-button secondary" to="/admin-dashboard">Back to overview</Link>
           </header>
 
           <div className="management-grid">
             <section aria-labelledby="manage-services-heading">
               <div className="service-toolbar">
-                <h2 id="manage-services-heading">Services <span className="admin-tag">{services.length}</span></h2>
+                <h2 id="manage-services-heading">Services <span className="service-total">({services.length})</span></h2>
                 <input
                   className="service-search"
                   aria-label="Search services"
                   type="search"
-                  placeholder="⌕  Search services"
+                  placeholder="Search by service name"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </div>
 
-              <div className="management-services">
-                {visibleServices.map((service) => (
-                  <article className="management-service" key={service.id}>
-                    <div>
-                      <h3>{service.name}</h3>
-                      <p>{service.description}</p>
-                      <div className="management-service-meta">
-                        <span className="admin-tag">◷ {service.duration} min / person</span>
-                        <span className={`admin-tag priority-${service.priority.toLowerCase()}`}>{service.priority} priority</span>
-                        <span className={`status-badge ${service.isOpen ? "open" : "closed"}`}>{service.isOpen ? "Queue open" : "Queue closed"}</span>
-                      </div>
-                    </div>
-                    <div className="management-actions">
-                      <span className="queue-count"><strong>{service.queueLength}</strong> waiting</span>
-                      <button className="admin-button secondary small" type="button" onClick={() => startEditing(service)}>Edit</button>
-                    </div>
-                  </article>
-                ))}
-                {visibleServices.length === 0 && (
-                  <div className="empty-services">No services match “{query}”. Try another search or create a new service.</div>
-                )}
+              <div className="table-scroll">
+                <table className="admin-table management-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Service</th>
+                      <th scope="col">Duration</th>
+                      <th scope="col">Priority</th>
+                      <th scope="col">Queue</th>
+                      <th scope="col"><span className="visually-hidden">Edit service</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleServices.map((service) => (
+                      <tr key={service.id}>
+                        <td className="service-name-cell">
+                          <strong>{service.name}</strong>
+                          <span>{service.description}</span>
+                        </td>
+                        <td>{service.duration} min</td>
+                        <td>{service.priority}</td>
+                        <td><span className={`queue-state ${service.isOpen ? "is-open" : "is-closed"}`}>{service.isOpen ? "Open" : "Closed"}</span></td>
+                        <td className="queue-action-cell">
+                          <button className="table-action" type="button" onClick={() => startEditing(service)}>Edit</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {visibleServices.length === 0 && (
+                      <tr><td className="table-empty" colSpan="5">No matching services.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
 
-            <aside className="admin-panel service-form" aria-labelledby="service-form-heading">
-              <h2 id="service-form-heading">{editingId ? "Edit service" : "Create a service"}</h2>
-              <p>Visitors will see this information when they choose a queue.</p>
+            <section className="service-form" aria-labelledby="service-form-heading">
+              <h2 id="service-form-heading">{editingId ? "Edit service" : "Add a service"}</h2>
+              <p className="form-intro">Fields marked * are required.</p>
               <form onSubmit={handleSubmit}>
                 <div className="service-form-fields">
                   <label htmlFor="service-name">
-                    Service name <span aria-hidden="true">*</span>
+                    Service name *
                     <input
                       id="service-name"
                       name="name"
@@ -138,18 +148,18 @@ function ServiceManagement() {
                     <span className="field-hint">{form.name.length}/100 characters</span>
                   </label>
                   <label htmlFor="service-description">
-                    Description <span aria-hidden="true">*</span>
+                    Description *
                     <textarea
                       id="service-description"
                       name="description"
                       value={form.description}
                       onChange={updateField}
-                      placeholder="What can visitors get help with?"
+                      placeholder="Describe the service"
                       required
                     />
                   </label>
                   <label htmlFor="service-duration">
-                    Expected duration <span aria-hidden="true">*</span>
+                    Expected duration (minutes) *
                     <input
                       id="service-duration"
                       name="duration"
@@ -163,7 +173,7 @@ function ServiceManagement() {
                     />
                   </label>
                   <label htmlFor="service-priority">
-                    Priority level <span aria-hidden="true">*</span>
+                    Priority level *
                     <select id="service-priority" name="priority" value={form.priority} onChange={updateField} required>
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
@@ -172,12 +182,12 @@ function ServiceManagement() {
                   </label>
                   {savedMessage && <p className="save-message" role="status">{savedMessage}</p>}
                   <div className="form-actions">
-                    <button className="admin-button" type="submit">{editingId ? "Save changes" : "Create service"}</button>
-                    {editingId && <button className="admin-button secondary" type="button" onClick={resetForm}>Cancel</button>}
+                    <button className="admin-button" type="submit">{editingId ? "Save changes" : "Add service"}</button>
+                    {editingId && <button className="plain-button" type="button" onClick={resetForm}>Cancel</button>}
                   </div>
                 </div>
               </form>
-            </aside>
+            </section>
           </div>
         </div>
       </main>
