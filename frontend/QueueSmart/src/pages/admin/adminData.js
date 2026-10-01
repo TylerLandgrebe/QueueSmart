@@ -72,3 +72,10 @@ export function saveServices(services) {
 export function getWaitTime(service) {
   return service.queue.length * service.duration;
 }
+
+export function formatWait(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}

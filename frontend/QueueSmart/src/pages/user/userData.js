@@ -6,11 +6,13 @@ export const starterUsers = [
     username: "user",
     name: "John Doe",
 
-    currentQueue: {
+    currentQueue: [
+        {
         serviceId: "advising",
         position: 3,
         status: "waiting",
-    }, 
+        }
+    ], 
 
     notifications: [
         {
@@ -65,3 +67,19 @@ export function getUser(username) {
   const users = getUsers();
   return users.find(user => user.username === username);
 }
+
+export function markNotificationAsRead(username, notificationId) {
+    const users = getUsers();
+
+    const userIndex = users.findIndex(u => u.username === username);
+    if (userIndex !== -1) {
+        const user = users[userIndex];
+        const notificationIndex = user.notifications.findIndex(n => n.id === notificationId);
+        if (notificationIndex !== -1) {
+            user.notifications[notificationIndex].read = true;
+            saveUser(user);
+        }
+
+        return user;
+    }
+}   

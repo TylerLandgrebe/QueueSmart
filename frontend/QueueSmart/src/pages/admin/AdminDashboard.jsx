@@ -1,15 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
-import { getServices, getWaitTime, saveServices } from "./adminData";
+import { getServices, getWaitTime, saveServices, formatWait } from "./adminData";
 import "./AdminPages.css";
 
-function formatWait(minutes) {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
-}
 
 function AdminDashboard() {
   const [services, setServices] = useState(getServices);
