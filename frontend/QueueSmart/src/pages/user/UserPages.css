@@ -392,3 +392,172 @@
         align-items: flex-start;
     }
 }
+/* ============================================================
+   Added for Join Queue / Queue Status (jy)
+   Append this to the bottom of the existing UserPages.css,
+   just before its final @media (max-width: 650px) block closes
+   — or anywhere outside another rule, order doesn't matter here.
+   None of the class names below collide with what's already
+   in this file.
+   ============================================================ */
+
+.user-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 39px;
+    padding: 0 14px;
+    border: 1px solid var(--purple);
+    border-radius: 3px;
+    background: var(--purple);
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+}
+.user-button:hover { background: #4f1b84; color: white; opacity: 1; }
+.user-button:disabled { background: #bcb5bf; border-color: #bcb5bf; cursor: not-allowed; }
+.user-button.secondary { background: transparent; color: var(--purple); }
+.user-button.secondary:hover { background: #e8e0ed; color: #4f1b84; }
+.user-page input:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+.service-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 24px 0 20px;
+}
+.service-search {
+    box-sizing: border-box;
+    width: min(320px, 100%);
+    min-height: 37px;
+    padding: 7px 10px;
+    border: 1px solid #bcb5bf;
+    border-radius: 2px;
+    background: #fff;
+    color: var(--ink);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+.save-message {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border: 1px solid #c7e2cf;
+    background: #eef7f0;
+    color: #28613b;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+.service-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+}
+.service-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--purple);
+    background: #fff;
+}
+.service-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.service-card-head h2 { margin: 0; font-size: 19px; font-weight: 400; }
+.service-card-description { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; flex-grow: 1; }
+.service-card-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    font-family: Arial, sans-serif;
+}
+.service-card-meta dt { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+.service-card-meta dd { margin: 2px 0 0; font-size: 14px; }
+
+.queue-status-list { display: grid; gap: 16px; margin-top: 24px; }
+.status-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--purple);
+    background: #fff;
+}
+.status-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.status-card-head h2 { margin: 0; font-size: 19px; font-weight: 400; }
+.status-position {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 50%;
+    background: #e8e0ed;
+    color: var(--purple);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+}
+.status-stage {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-stage.waiting { background: #efe9f2; color: var(--purple); }
+.status-stage.almost-ready { background: #fdf1d9; color: #8a6a22; }
+.status-stage.served { background: #e3f2e7; color: #28613b; }
+.status-card-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    font-family: Arial, sans-serif;
+}
+.status-card-meta dt { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+.status-card-meta dd { margin: 2px 0 0; font-size: 14px; }
+
+.history-status { font-family: Arial, sans-serif; font-size: 12px; white-space: nowrap; }
+.history-status::before { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; content: ''; }
+.history-status.served::before { background: #38764d; }
+.history-status.served { color: #28613b; }
+.history-status.left::before { background: #a9842f; }
+.history-status.left { color: #8a6a22; }
+.history-status.cancelled::before { background: #a1414a; }
+.history-status.cancelled { color: #8a2f36; }
+
+.plain-button {
+    padding: 5px 0;
+    border: 0;
+    background: none;
+    color: var(--purple);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    align-self: flex-start;
+}
+.plain-button:hover { color: #3f116f; }
+
+@media (max-width: 900px) {
+    .service-card-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+    .service-toolbar { align-items: flex-start; flex-direction: column; }
+}
