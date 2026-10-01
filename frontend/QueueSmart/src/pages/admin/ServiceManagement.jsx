@@ -56,7 +56,7 @@ function ServiceManagement() {
         id: `service-${Date.now()}`,
         ...serviceDetails,
         isOpen: true,
-        queueLength: 0,
+        queue: [],
       }];
 
     setServices(updatedServices);

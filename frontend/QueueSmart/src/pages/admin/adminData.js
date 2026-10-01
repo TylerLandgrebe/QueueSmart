@@ -1,5 +1,19 @@
 const STORAGE_KEY = "queuesmart-admin-services";
 
+function normalizeService(service) {
+  const { queueLength, ...serviceDetails } = service;
+  const previousQueueLength = Number.isInteger(queueLength) ? queueLength : 0;
+  const queue = Array.isArray(service.queue)
+    ? service.queue
+    : Array.from({ length: previousQueueLength }, (_, index) => ({
+        id: `${service.id}-visitor-${index + 1}`,
+        displayName: `Visitor ${index + 1}`,
+        joinedAt: new Date().toISOString(),
+      }));
+
+  return { ...serviceDetails, queue };
+}
+
 export const starterServices = [
   {
     id: "advising",
@@ -8,7 +22,18 @@ export const starterServices = [
     duration: 20,
     priority: "Medium",
     isOpen: true,
-    queueLength: 8,
+    queue: [
+      {
+        id: "visitor-1",
+        displayName: "Jordan Lee",
+        joinedAt: "2026-09-30T14:05:00",
+      },
+      {
+        id: "visitor-2",
+        displayName: "Sam Rivera",
+        joinedAt: "2026-09-30T14:12:00",
+      },
+    ],
   },
   {
     id: "financial-aid",
@@ -17,7 +42,7 @@ export const starterServices = [
     duration: 15,
     priority: "High",
     isOpen: true,
-    queueLength: 5,
+    queue: [],
   },
   {
     id: "it-help",
@@ -26,16 +51,17 @@ export const starterServices = [
     duration: 10,
     priority: "Low",
     isOpen: false,
-    queueLength: 0,
+    queue: [],
   },
 ];
 
 export function getServices() {
   try {
     const savedServices = window.localStorage.getItem(STORAGE_KEY);
-    return savedServices ? JSON.parse(savedServices) : starterServices;
+    const services = savedServices ? JSON.parse(savedServices) : starterServices;
+    return services.map(normalizeService);
   } catch {
-    return starterServices;
+    return starterServices.map(normalizeService);
   }
 }
 
@@ -44,5 +70,5 @@ export function saveServices(services) {
 }
 
 export function getWaitTime(service) {
-  return service.queueLength * service.duration;
+  return service.queue.length * service.duration;
 }

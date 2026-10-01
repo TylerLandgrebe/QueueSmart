@@ -1,7 +1,31 @@
+import { useState } from 'react'
 import {NavLink} from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import './NavigationBar.css'
 
+function ProfileMenu({ onLogout }) {
+    const [isOpen, setIsOpen] = useState(false)
+
+    return(
+        <div className="profile-container">
+            <button
+                className="profile-button"
+                type="button"
+                aria-label="Profile"
+                aria-expanded={isOpen}
+                title="Profile"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <i className="fa-solid fa-circle-user" aria-hidden="true" />
+            </button>
+            {isOpen && (
+                <div className="profile-menu">
+                    <button type="button" onClick={onLogout}>Log out</button>
+                </div>
+            )}
+        </div>
+    )
+}
 
 function NavigationBar( {userType} ){
 
@@ -42,9 +66,7 @@ function NavigationBar( {userType} ){
                     <span className="tooltip">History</span>
                 </NavLink>
 
-                <button className="rail-logout" type="button" onClick={handleLogout}>
-                    <i className="fa-solid fa-circle-user" aria-hidden="true" />
-                </button>
+                <ProfileMenu onLogout={handleLogout} />
                 
             </>
             )}
@@ -65,9 +87,7 @@ function NavigationBar( {userType} ){
                     <span className="tooltip">Appointments</span>
                 </NavLink>
                 
-                <button className="rail-logout" type="button" onClick={handleLogout}>
-                    <i className="fa-solid fa-circle-user" aria-hidden="true" />
-                </button>
+                <ProfileMenu onLogout={handleLogout} />
             </>
             )}
         </div>

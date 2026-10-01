@@ -69,6 +69,11 @@
     display: block;
     border: none;
     background-color: white;
+    padding: 8px 12px;
+    color: #29252c;
+    font: 14px Arial, sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 .profile-menu button:hover{
@@ -76,6 +81,7 @@
 }
 
 .profile-button { 
+    box-sizing: border-box;
     width: 100%;
     padding: 16px;
     background: none;
@@ -86,18 +92,9 @@
     cursor: pointer;
 }
 
-.rail-logout {
-    display: block;
-    width: 100%;
-    padding: 16px;
-    border: 0;
-    background: transparent;
-    color: white;
-    font-size: 36px;
-    text-align: center;
-    cursor: pointer;
-}
+.profile-button:hover { background-color: #000; }
 
-.rail-logout i { font-size: 36px; }
-.rail-logout:hover { background-color: #000; }
-.rail-logout:focus-visible { outline: 2px solid white; outline-offset: -4px; }
+.profile-button:focus-visible, .profile-menu button:focus-visible {
+    outline: 2px solid #6624a9;
+    outline-offset: 2px;
+}

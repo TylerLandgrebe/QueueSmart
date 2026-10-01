@@ -16,7 +16,7 @@ function AdminDashboard() {
   const openCount = services.filter((service) => service.isOpen).length;
   const waitingCount = services
     .filter((service) => service.isOpen)
-    .reduce((total, service) => total + service.queueLength, 0);
+    .reduce((total, service) => total + service.queue.length, 0);
 
   function toggleQueue(serviceId) {
     const updatedServices = services.map((service) => service.id === serviceId
@@ -73,7 +73,7 @@ function AdminDashboard() {
                         <span>{service.duration} minutes per visitor</span>
                       </td>
                       <td><span className={`queue-state ${service.isOpen ? "is-open" : "is-closed"}`}>{service.isOpen ? "Open" : "Closed"}</span></td>
-                      <td>{service.queueLength}</td>
+                      <td>{service.queue.length}</td>
                       <td>{formatWait(getWaitTime(service))}</td>
                       <td>{service.priority}</td>
                       <td className="queue-action-cell">
