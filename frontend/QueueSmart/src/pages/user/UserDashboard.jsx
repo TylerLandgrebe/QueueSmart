@@ -1,41 +1,30 @@
 import NavigationBar from "../../components/NavigationBar"
 import { Link } from "react-router-dom"
 import { useState } from "react"
-import { getUser, markNotificationAsRead } from "./userData"
-import { getServices, formatWait, getWaitTime } from "../admin/adminData"
+import { getUserNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationData"
+import { getServices, formatWait } from "../admin/adminData"
+import {getEntries, getUserEntries, getPosition, getEstimatedWait, getQueueStage, stageLabel, getWaitingEntriesForService} from "./queueData" 
 import "./UserPages.css"
 
-const session = JSON.parse(
-    sessionStorage.getItem("queuesmart-session")
-);
-
-const services = getServices();
-
-function formatTimeStamp(timestamp) {
-    const date = new Date(timestamp);
-    const today = new Date();
-
-    const isToday = 
-        date.getFullYear() === today.getFullYear() &&
-        date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate();
-
-    if(isToday) {
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return date.toLocaleDateString();
-}
 
 function UserDashboard(){
-    const [user, setUser] = useState(getUser(session?.username));
-    const unreadNotifications = user?.notifications.filter(n => !n.read);
+    const session = JSON.parse(
+        sessionStorage.getItem("queuesmart-session")
+    );
+
+    const services = getServices();
+
+    const [userNotifications, setUserNotifications] = useState(getUserNotifications(session?.username));
+    const [entries, setEntries] = useState(getEntries());
+    const currentQueues = getUserEntries(entries, session?.username).filter(entry => entry.status === "waiting");
+    const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read) ?? [];
 
     function handleNotificationClick(notificationId) {
-    const updatedUser = markNotificationAsRead(session?.username, notificationId);
-    if (updatedUser) {
-        setUser(updatedUser);
+        const updatedUser = markNotificationAsRead(session?.username, notificationId);
+        if (updatedUser) {
+            setUserNotifications(updatedUser);
+        }
     }
-}
 
     return(
         <>
@@ -73,26 +62,30 @@ function UserDashboard(){
                                 </thead>
 
                                 <tbody>
-                                    {user?.currentQueue.map((queue) => {
+                                    {currentQueues.map((entry) => {
                                         const service = services.find(
-                                            s => s.id === queue.serviceId
+                                            s => s.id === entry.serviceId
                                         );
 
                                         if (!service) {
                                             return null; // Skip if service not found
                                         }
 
+                                        const position = getPosition(entries, entry);
+                                        const estimatedWait = getEstimatedWait(entries, entry, service);
+                                        const stage = getQueueStage(position);
+
                                         return (
-                                            <tr key={queue.serviceId}>
+                                            <tr key={entry.serviceId}>
                                                 <td className="service-name-cell">
                                                     <strong>{service.name}</strong>
                                                     <span>
                                                         {service.duration} min service
                                                     </span>
                                                 </td>
-                                                <td>#{queue.position}</td>
-                                                <td>{formatWait(queue.position * service.duration)}</td>
-                                                <td>{queue.status}</td>
+                                                <td>#{position}</td>
+                                                <td>{formatWait(estimatedWait)}</td>
+                                                <td>{stageLabel(stage)}</td>
                                                 <td className="queue-action-cell">
                                                     <Link className="table-action" to="/queue-status">
                                                         View Status
@@ -102,7 +95,7 @@ function UserDashboard(){
                                         )
                                     })}
 
-                                    {user.currentQueue.length === 0 && (
+                                    {currentQueues.length === 0 && (
                                         <tr>
                                             <td colSpan="5" className="table-empty">
                                                 You are not currently in any queues.
@@ -134,15 +127,19 @@ function UserDashboard(){
                                 </thead>
 
                                 <tbody>
-                                    {services.filter((service) => service.isOpen).map((service) => (
-                                        <tr key={service.id}>
-                                            <td className="service-name-cell">
-                                                <strong>{service.name}</strong>
-                                            </td>
-                                            <td>{service.queue.length}</td>
-                                            <td>{service.isOpen ? formatWait(getWaitTime(service)) : "N/A"}</td>
-                                        </tr>
-                                    ))}
+                                    {services.filter((service) => service.isOpen).map((service) => {
+                                        const waitingEntries = getWaitingEntriesForService(entries, service.id);
+                                    
+                                        return (
+                                            <tr key={service.id}>
+                                                <td className="service-name-cell">
+                                                    <strong>{service.name}</strong>
+                                                </td>
+                                                <td>{waitingEntries.length}</td>
+                                                <td>{service.isOpen ? formatWait(waitingEntries.length * service.duration) : "N/A"}</td>
+                                            </tr>
+                                        )
+                                    })}    
                                 </tbody>
                             </table>
                         </div>

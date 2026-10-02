@@ -287,6 +287,11 @@
     border-bottom: 1px solid #e7e3e8;
 }
 
+.notification-item.read {
+    background: #e2e2e2;
+    color: #545454;
+}
+
 .notification-content {
     flex: 1;
 }

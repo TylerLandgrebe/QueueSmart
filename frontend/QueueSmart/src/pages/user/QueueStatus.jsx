@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
+import {addNotification} from "./notificationData";
 import {
   getEntries,
   saveEntries,
@@ -34,10 +35,11 @@ function QueueStatus() {
     .filter((entry) => entry.status === "waiting")
     .sort((a, b) => a.joinedAt - b.joinedAt);
 
-  function handleLeave(entryId) {
-    const updated = updateEntryStatus(entries, entryId, "left");
+  function handleLeave(entry) {
+    const updated = updateEntryStatus(entries, entry.id, "left");
     setEntries(updated);
     saveEntries(updated);
+    addNotification(username, `You have left the queue for ${entry.serviceName}.`);
   }
 
   return (
@@ -96,7 +98,7 @@ function QueueStatus() {
                       </dd>
                     </div>
                   </dl>
-                  <button className="plain-button" type="button" onClick={() => handleLeave(entry.id)}>
+                  <button className="plain-button" type="button" onClick={() => handleLeave(entry)}>
                     Leave queue
                   </button>
                 </article>

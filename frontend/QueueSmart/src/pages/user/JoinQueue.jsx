@@ -1,7 +1,8 @@
 import { useState } from "react";
 import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
-import { getEntries, saveEntries, createEntry, isWaiting } from "./queueData";
+import { getEntries, saveEntries, createEntry, isWaiting, getPosition } from "./queueData";
+import { addNotification } from "./notificationData";
 import "./UserPages.css";
 
 function getSession() {
@@ -30,9 +31,12 @@ function JoinQueue() {
       setMessage(`You're already in the queue for ${service.name}.`);
       return;
     }
-    const updated = [...entries, createEntry(username, service)];
+    const newEntry = createEntry(username, service);
+    const updated = [...entries, newEntry];
     setEntries(updated);
     saveEntries(updated);
+    const position = getPosition(updated, newEntry);
+    addNotification(username, `You joined the queue for ${service.name}. Your current position is ${position}.`);
     setMessage(`You joined the queue for ${service.name}. Check Appointments for your position.`);
   }
 
