@@ -1,17 +1,21 @@
-const { randomUUID } = require('node: crypto')
+import { randomUUID } from 'node:crypto'
+import bcrypt from 'bcrypt'
+
+const userHashedPassword = await bcrypt.hash("Password123", 10)
+const adminHashedPassword = await bcrypt.hash("adminPass", 10)
 
 // username should be valid email
 const users = [
     {
         id: randomUUID(),
         username: "user@email.com",
-        passwordHash: "Password123",
+        passwordHash: userHashedPassword,
         role: "user"
     },
     {
         id: randomUUID(),
         username: "admin@email.com",
-        passwordHash: "adminPass",
+        passwordHash: adminHashedPassword,
         role: "admin"
     }
 ]
@@ -19,19 +23,19 @@ const users = [
 // Check that email is valid format
 // Check that password is at least length of 8 characters
 function verifyRegister(username, password){
-    if (length(password) < 8){
+    if (typeof username !== "string" || password.length < 8){
         return "invalid password"
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(!emailRegex.test(email)){
+    if(typeof password !== "string" || !emailRegex.test(username)){
         return "invalid email"
     }
 
     return 'valid'
 }
 
-module.exports = {
-    users, 
+export {
+    users,
     verifyRegister
 }

@@ -1,12 +1,13 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
+import express from 'express'
+import cors from 'cors'
 
-const authRoutes = require('./routes/authRoutes.js')
-const serviceRoutes = require('./routes/serviceRoutes.js')
-const queueRoutes = require('./routes/queueRoutes.js')
-const notificationRoutes = require("./routes/notificationRoutes.js")
-const historyRoutes = require("./routes/historyRoutes.js")
+import authRoutes from './routes/authRoutes.js'
+import serviceRoutes from './routes/serviceRoutes.js'
+import queueRoutes from './routes/queueRoutes.js'
+import notificationRoutes from "./routes/notificationRoutes.js"
+import historyRoutes from "./routes/historyRoutes.js"
+
+const app = express()
 
 // Middleware
 app.use(cors())
