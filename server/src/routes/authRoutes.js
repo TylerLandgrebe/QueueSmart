@@ -65,9 +65,18 @@ router.post('/login', async (req, res) => {
 
 router.post("/register", async (req, res) => {
     try{
-        const username = typeof req.body.username === "string"
-            ? req.body.username.trim().toLowerCase()
-            : req.body.username
+        if(
+            !req.body.username || 
+            !req.body.password ||
+            typeof req.body.username !== "string" ||
+            typeof req.body.password !== "string"
+        ){
+            return res.status(400).json(
+                {error: "Missing or Invalid username or password"}
+            ) 
+        }
+
+        const username = req.body.username.trim().toLowerCase()
         const password = req.body.password
         //Default role is user
         const role = 'user'
