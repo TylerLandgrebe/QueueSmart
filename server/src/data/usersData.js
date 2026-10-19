@@ -1,11 +1,15 @@
+const { randomUUID } = require('node: crypto')
+
 // username should be valid email
-export const users = [
+const users = [
     {
+        id: randomUUID(),
         username: "user@email.com",
         passwordHash: "Password123",
         role: "user"
     },
     {
+        id: randomUUID(),
         username: "admin@email.com",
         passwordHash: "adminPass",
         role: "admin"
@@ -14,7 +18,7 @@ export const users = [
 
 // Check that email is valid format
 // Check that password is at least length of 8 characters
-export function verifyRegister(username, password){
+function verifyRegister(username, password){
     if (length(password) < 8){
         return "invalid password"
     }
@@ -25,4 +29,9 @@ export function verifyRegister(username, password){
     }
 
     return 'valid'
+}
+
+module.exports = {
+    users, 
+    verifyRegister
 }

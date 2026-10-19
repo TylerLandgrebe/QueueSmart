@@ -1,12 +1,15 @@
-import { Router } from 'express'
-import {users, verifyRegister} from '../data/usersData'
-
+const {users, verifyRegister} = require('../data/usersData.js')
+const express = require('express')
+const { randomUUID } = require('node: crypto')
 const bcrypt = require('bcrypt')
-const router = Router();
+
+const router = express.Router()
 
 router.post('/login', async (req, res) => {
     try{
-        const username = req.body.username
+        const username = typeof req.body.username === "string"
+            ? req.body.username.trim().toLowerCase()
+            : req.body.username
         const password = req.body.password
 
         // Validate required fields
@@ -45,8 +48,9 @@ router.post('/login', async (req, res) => {
         return res.status(200).json({
             message: "Login successful",
             user: {
-                username: validLogin.username,
-                role: validLogin.role
+                id: user.id,
+                username: user.username,
+                role: user.role
             }
         })
 
@@ -61,8 +65,10 @@ router.post('/login', async (req, res) => {
 
 router.post("/register", async (req, res) => {
     try{
-        const username = req.body.username;
-        const password = req.body.password;
+        const username = typeof req.body.username === "string"
+            ? req.body.username.trim().toLowerCase()
+            : req.body.username
+        const password = req.body.password
         //Default role is user
         const role = 'user'
 
@@ -90,12 +96,13 @@ router.post("/register", async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, saltRounds)
 
         users.push({
+            id: randomUUID(),
             username: username,
             passwordHash: hashedPassword,
             role: role
         })
 
-        return res.status.json("User registered successfully")
+        return res.status(201).json("User registered successfully")
 
     }catch(error){
         console.error("There was an error during the register process", error)
@@ -104,4 +111,4 @@ router.post("/register", async (req, res) => {
     }
 })
 
-export default router
+module.exports = router
