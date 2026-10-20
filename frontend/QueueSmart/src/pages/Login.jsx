@@ -1,10 +1,13 @@
 import {useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom"
+import { useAuth } from "../auth/AuthContext.jsx"
 import './Login.css'
 
+const API = "http://localhost:3000/"
 
 function Login(){
     const navigate = useNavigate()
+    const {setUser} = useAuth()
 
     // Keep track of username/password info
     const [username, setUsername] = useState("")
@@ -18,56 +21,106 @@ function Login(){
         usernameInput.current?.focus()
     }, [register])
 
-    //Temp login info for testing purposes
-    const [userLogin, setUserLogin] = useState([{
-        username: "user",
-        password: "password"
-    }]) 
+    async function handleLogin(e) {
+        e.preventDefault()
 
-    const [adminLogin, setAdminLogin] = useState ([{
-        username: "admin",
-        password: "adminpass"
-    }])
+        try {
+            const response = await fetch(`${API}api/auth/login`, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
 
-    function handleLogin(e){
-        e.preventDefault();
+            const data = await response.json()
 
-        if (
-            userLogin.some((login) => (
-                username == login.username && 
-                password == login.password
-            ))
-        ) {
-            sessionStorage.setItem("queuesmart-session", JSON.stringify({ username, role: "user" }))
-            navigate('/user-dashboard')
-        }
-        else if (
-            adminLogin.some((login) => (
-                username === login.username &&
-                password === login.password
-            ))
-        ) {
-            sessionStorage.setItem("queuesmart-session", JSON.stringify({ username, role: "admin" }))
-            navigate('/admin-dashboard')
-        }
-        else {
-            setMessage({ type: "error", text: "Invalid username or password. Please try again." })
+            if (!response.ok) {
+                setMessage({
+                    type: "error",
+                    text: data.error || "Login failed"
+                })
+                setPassword("")
+                usernameInput.current?.focus()
+                return
+            }
+
+            // Login successful
+            setMessage({
+                type: "success",
+                text: "Login successful"
+            })
+
             setPassword("")
-            usernameInput.current?.focus()
+            setUser(data.user)
+
+            // Navigate to the appropriate dashboard
+            if (data.user.role === "admin") {
+                navigate("/admin-dashboard")
+            } else {
+                navigate("/user-dashboard")
+            }
+
+        } catch (error) {
+            console.error("Login request failed:", error)
+
+            setMessage({
+                type: "error",
+                text: "Unable to connect to the server"
+            })
         }
     }
 
-    //No constraints on login credentials
-    //Login credentials are not saved long term
-    function handleRegister(e) { 
+    
+    async function handleRegister(e) { 
         e.preventDefault();
 
-        let newLogin = {username: username, password: password};
-        setUserLogin(userLogin => [...userLogin, newLogin]);
-        setUsername("")
-        setPassword("")
-        setRegister(false)
-        setMessage({ type: "success", text: "Your account has been created. Sign in to continue." })
+        try { 
+            let newLogin = {username: username, password: password}
+
+            const response = await fetch(`${API}api/auth/register`, { 
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newLogin)
+            })
+
+            const data = await response.json()
+
+            if(!response.ok){
+                setMessage({
+                    type: 'error',
+                    text: data.error || "Registration Failed"
+                })
+                setPassword("")
+                usernameInput.current?.focus()
+                return
+            }
+
+            //Registration successful
+            setUsername("")
+            setPassword("")
+            setRegister(false)
+            setMessage({
+                type: 'success',
+                text: 'Your account has been created. Sign in to continue'
+            })
+
+        }catch(error){
+            console.error("Registration was unsuccessful", error)
+
+            setMessage({
+                type: 'error',
+                text: "Unhandled error", error
+            })
+        }
+
+        
     }
 
     // Change between login and register page

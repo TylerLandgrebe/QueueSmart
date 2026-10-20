@@ -3,6 +3,7 @@ import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
 import { getEntries, saveEntries, createEntry, isWaiting, getPosition } from "./queueData";
 import { addNotification } from "./notificationData";
+import {useAuth} from "../../auth/AuthContext.jsx"
 import "./UserPages.css";
 
 function getSession() {
@@ -14,8 +15,8 @@ function getSession() {
 }
 
 function JoinQueue() {
-  const session = getSession();
-  const username = session?.username ?? "guest";
+  const { user } = useAuth()
+  const username = user?.username ?? "guest"
 
   const [services] = useState(getServices);
   const [entries, setEntries] = useState(getEntries);

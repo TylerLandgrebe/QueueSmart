@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
 import {addNotification} from "./notificationData";
+import {useAuth} from "../../auth/AuthContext.jsx"
 import {
   getEntries,
   saveEntries,
@@ -25,8 +26,8 @@ function getSession() {
 }
 
 function QueueStatus() {
-  const session = getSession();
-  const username = session?.username ?? "guest";
+  const {user} = useAuth()
+  const username = user?.username ?? "guest"
 
   const [services] = useState(getServices);
   const [entries, setEntries] = useState(getEntries);

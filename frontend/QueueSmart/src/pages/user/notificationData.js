@@ -36,7 +36,8 @@ export function saveNotifications(notifications) {
 
 export function getUserNotifications(username) {
   const notifications = getNotifications();
-  return notifications.find(user => user.username === username);
+  return notifications.find(user => user.username === username)
+    ?? { username, notifications: []};
 }
 
 export function addNotification(username, message) {

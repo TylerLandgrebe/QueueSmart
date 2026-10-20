@@ -1,6 +1,7 @@
 import NavigationBar from "../../components/NavigationBar"
 import { Link } from "react-router-dom"
 import { useState } from "react"
+import {useAuth} from "../../auth/AuthContext.jsx"
 import { getUserNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationData"
 import { getServices, formatWait } from "../admin/adminData"
 import {getEntries, getUserEntries, getPosition, getEstimatedWait, getQueueStage, stageLabel, getWaitingEntriesForService} from "./queueData" 
@@ -8,19 +9,18 @@ import "./UserPages.css"
 
 
 function UserDashboard(){
-    const session = JSON.parse(
-        sessionStorage.getItem("queuesmart-session")
-    );
+    const {user} = useAuth()
+    const username = user?.username ?? "guest"
 
     const services = getServices();
 
-    const [userNotifications, setUserNotifications] = useState(getUserNotifications(session?.username));
+    const [userNotifications, setUserNotifications] = useState(getUserNotifications(username));
     const [entries, setEntries] = useState(getEntries());
-    const currentQueues = getUserEntries(entries, session?.username).filter(entry => entry.status === "waiting");
+    const currentQueues = getUserEntries(entries, username).filter(entry => entry.status === "waiting");
     const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read) ?? [];
 
     function handleNotificationClick(notificationId) {
-        const updatedUser = markNotificationAsRead(session?.username, notificationId);
+        const updatedUser = markNotificationAsRead(username, notificationId);
         if (updatedUser) {
             setUserNotifications(updatedUser);
         }

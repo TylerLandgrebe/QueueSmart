@@ -1,19 +1,19 @@
 import { getUserNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationData";
 import { useState } from "react";
+import { useAuth} from "../../auth/AuthContext.jsx"
 import NavigationBar from "../../components/NavigationBar"
 
 
 function Notifications(){
-    const session = JSON.parse(
-        sessionStorage.getItem("queuesmart-session")
-    );
+    const {user} = useAuth()
+    const username = user?.username ?? "guest"
 
-    const [userNotifications, setUserNotifications] = useState(getUserNotifications(session?.username));
+    const [userNotifications, setUserNotifications] = useState(getUserNotifications(username));
     const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     const readNotifications = userNotifications?.notifications?.filter(n => n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     function handleNotificationClick(notificationId) {
-        const updatedUser = markNotificationAsRead(session?.username, notificationId);
+        const updatedUser = markNotificationAsRead(username, notificationId);
         if (updatedUser) {
             setUserNotifications(updatedUser);
         }
@@ -22,7 +22,7 @@ function Notifications(){
     function handleMarkAllAsRead() {
         let updatedUser = userNotifications;
         unreadNotifications.forEach(notification => {
-            updatedUser = markNotificationAsRead(session?.username, notification.id);
+            updatedUser = markNotificationAsRead(username, notification.id);
         });
         setUserNotifications(updatedUser);
     }

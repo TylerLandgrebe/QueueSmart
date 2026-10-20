@@ -1,6 +1,7 @@
 import { useState } from "react";
 import NavigationBar from "../../components/NavigationBar";
 import { getEntries, getUserEntries, formatTimestamp } from "./queueData";
+import {useAuth} from "../../auth/AuthContext.jsx"
 import "./UserPages.css";
 
 function getSession() {
@@ -19,8 +20,8 @@ function statusLabel(status) {
 }
 
 function History() {
-  const session = getSession();
-  const username = session?.username ?? "guest";
+  const {user} = useAuth()
+  const username = user?.username ?? "guest"
   const [entries] = useState(getEntries);
 
   const pastEntries = getUserEntries(entries, username)

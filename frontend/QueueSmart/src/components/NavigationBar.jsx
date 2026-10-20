@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {NavLink} from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext.jsx'
 import './NavigationBar.css'
 
 function ProfileMenu({ onLogout }) {
@@ -34,9 +35,10 @@ function NavigationBar( {userType} ){
     }
 
     const navigate = useNavigate();
+    const { logout } = useAuth();
 
-    function handleLogout(){
-        sessionStorage.removeItem("queuesmart-session");
+    async function handleLogout(){
+        await logout();
         navigate("/", { replace: true });
     }
 

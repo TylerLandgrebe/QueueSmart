@@ -7,11 +7,15 @@ import serviceRoutes from './routes/serviceRoutes.js'
 import queueRoutes from './routes/queueRoutes.js'
 import notificationRoutes from "./routes/notificationRoutes.js"
 import historyRoutes from "./routes/historyRoutes.js"
+import { join } from 'node:path'
 
 const app = express()
 
 // Middleware
-app.use(cors())
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}))
 app.use(express.json())
 app.use(session({
     name: 'queuesmart.sid',
