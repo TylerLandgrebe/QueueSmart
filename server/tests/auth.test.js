@@ -85,6 +85,8 @@ describe("Authentication - Login", () => {
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("Username and password are required")
     })
+
+
 })
 
 describe('Authentication - Registration', () => {
@@ -202,4 +204,56 @@ describe('Authentication - Registration', () => {
         expect(response.body.error).toBe("Missing or Invalid username or password")
         expect(users).toHaveLength(0)
     })
+})
+
+describe('Authentication - Session Cookies', () => {
+    beforeEach(() => {
+        //Clear users before every test
+        users.length = 0
+    })
+
+
+    test("Authenticated user can acces their profile", async () => {
+        // Create a Supertest agent
+        const agent = request.agent(app)
+
+        //Register a user
+        const registerResponse = await agent
+            .post('/api/auth/register')
+            .send({
+                username: "test@email.com",
+                password: "Password123"
+            })
+
+        expect(registerResponse.status).toBe(201)
+
+        //Log in
+        const loginResponse = await agent 
+            .post('/api/auth/login')
+            .send({
+                username: "test@email.com",
+                password: "Password123"
+            })
+
+        expect(loginResponse.status).toBe(200)
+
+        // Access a protected endpoint
+        const response = await agent.get('/api/auth/me')
+        
+        expect(response.status).toBe(200)
+        expect(response.body.user.username).toBe("test@email.com")
+        expect(response.body.user.role).toBe('user')
+    })
+
+    test("Authenticated routes can't be accesed without a session", async () => {
+        const agent = request.agent(app)
+
+        //Access a protected endpoint
+        const response =  await agent.get('/api/auth/me')
+
+        expect(response.status).toBe(401)
+        expect(response.body.error).toBe("Authentication required")
+    })
+
+    //TODO: create test for admin-only routes
 })

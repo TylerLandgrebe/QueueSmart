@@ -1,4 +1,5 @@
 import { users, verifyRegister } from '../data/usersData.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
@@ -45,13 +46,33 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        return res.status(200).json({
-            message: "Login successful",
-            user: {
-                id: user.id,
-                username: user.username,
-                role: user.role
+        // Create a fresh session after successful login
+        req.session.regenerate(error => {
+            if(error) { 
+                return res.status(500).json({
+                    error: "Could not create session"
+                })
             }
+
+            //Store only the user's ID in the session
+            req.session.userId = user.id
+
+            req.session.save(error => {
+                if(error) { 
+                    return res.status(500).json({
+                        error: "Could not save session"
+                    })
+                }
+
+                return res.status(200).json({
+                    message: "Login successful",
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        role: user.role
+                    }
+                })
+            })
         })
 
     }catch(error){
@@ -120,6 +141,35 @@ router.post("/register", async (req, res) => {
         res.status(500).json("There was a problem registering the user")
         return
     }
+})
+
+// endpoint for resotring login state after refreshing the page 
+router.get('/me', requireAuth, (req, res) => {
+    return res.status(200).json({
+        user: {
+            id: req.user.id, 
+            username: req.user.username,
+            role: req.user.role
+        }
+    })
+})
+
+router.post('/logout', requireAuth, (req, res) => {
+    req.session.destroy(error => {
+        if(error) {
+            return res.status(500).json({
+                error: "Could not log out"
+            })
+        }
+
+        res.clearCookie('queuesmart.sid', {
+            path: '/'
+        })
+
+        return res.status(200).json({
+            message: "Logged out successfully"
+        })
+    })
 })
 
 export default router
