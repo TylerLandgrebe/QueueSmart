@@ -1,17 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
-import { getServices, saveServices } from "./adminData";
 import "./AdminPages.css";
 
 const emptyForm = { name: "", description: "", duration: "", priority: "Medium" };
+const API = "http://localhost:3000/api/services";
 
 function ServiceManagement() {
-  const [services, setServices] = useState(getServices);
+  const [services, setServices] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(API, { credentials: "include" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load services.");
+        setServices(data.services);
+      })
+      .catch((error) => setErrorMessage(error.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const visibleServices = services.filter((service) =>
     service.name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -41,7 +54,7 @@ function ServiceManagement() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const serviceDetails = {
       name: form.name.trim(),
@@ -50,20 +63,27 @@ function ServiceManagement() {
       priority: form.priority,
     };
 
-    const updatedServices = editingId
-      ? services.map((service) => service.id === editingId ? { ...service, ...serviceDetails } : service)
-      : [...services, {
-        id: `service-${Date.now()}`,
-        ...serviceDetails,
-        isOpen: true,
-        queue: [],
-      }];
+    setErrorMessage("");
+    setSavedMessage("");
+    try {
+      const response = await fetch(editingId ? `${API}/${editingId}` : API, {
+        method: editingId ? "PUT" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serviceDetails),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save service.");
 
-    setServices(updatedServices);
-    saveServices(updatedServices);
-    setSavedMessage(editingId ? "Service changes saved." : "Service created and queue opened.");
-    setForm(emptyForm);
-    setEditingId(null);
+      setServices((current) => editingId
+        ? current.map((service) => service.id === editingId ? data.service : service)
+        : [...current, data.service]);
+      setSavedMessage(editingId ? "Service changes saved." : "Service created and queue opened.");
+      setForm(emptyForm);
+      setEditingId(null);
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
   }
 
   return (
@@ -94,6 +114,8 @@ function ServiceManagement() {
                 />
               </div>
 
+              {loading && <p role="status">Loading services…</p>}
+              {errorMessage && <p className="save-message" role="alert">{errorMessage}</p>}
               <div className="table-scroll">
                 <table className="admin-table management-table">
                   <thead>
@@ -120,7 +142,7 @@ function ServiceManagement() {
                         </td>
                       </tr>
                     ))}
-                    {visibleServices.length === 0 && (
+                    {!loading && visibleServices.length === 0 && (
                       <tr><td className="table-empty" colSpan="5">No matching services.</td></tr>
                     )}
                   </tbody>
@@ -155,6 +177,7 @@ function ServiceManagement() {
                       value={form.description}
                       onChange={updateField}
                       placeholder="Describe the service"
+                      maxLength={500}
                       required
                     />
                   </label>

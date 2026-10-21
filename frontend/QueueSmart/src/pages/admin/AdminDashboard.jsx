@@ -1,23 +1,55 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
-import { getServices, getWaitTime, saveServices, formatWait } from "./adminData";
+import { getServices, getWaitTime, formatWait } from "./adminData";
 import "./AdminPages.css";
 
+const API = "http://localhost:3000/api/services";
 
 function AdminDashboard() {
-  const [services, setServices] = useState(getServices);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const openCount = services.filter((service) => service.isOpen).length;
   const waitingCount = services
     .filter((service) => service.isOpen)
     .reduce((total, service) => total + service.queue.length, 0);
 
-  function toggleQueue(serviceId) {
-    const updatedServices = services.map((service) => service.id === serviceId
-      ? { ...service, isOpen: !service.isOpen }
-      : service);
-    setServices(updatedServices);
-    saveServices(updatedServices);
+  useEffect(() => {
+    fetch(API, { credentials: "include" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load services.");
+
+        // Queue-management mock data is still local for now; match it only by
+        // service ID while the service catalog itself comes from the backend.
+        const localServices = new Map(getServices().map((service) => [service.id, service]));
+        setServices(data.services.map((service) => ({
+          ...service,
+          queue: localServices.get(service.id)?.queue ?? [],
+        })));
+      })
+      .catch((error) => setErrorMessage(error.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function toggleQueue(service) {
+    setErrorMessage("");
+    try {
+      const response = await fetch(`${API}/${service.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOpen: !service.isOpen }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not update queue status.");
+      setServices((current) => current.map((item) => item.id === service.id
+        ? { ...item, isOpen: data.service.isOpen }
+        : item));
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
   }
 
   return (
@@ -39,6 +71,9 @@ function AdminDashboard() {
             <p><strong>{openCount}</strong><span>queues open</span></p>
             <p><strong>{waitingCount}</strong><span>people waiting</span></p>
           </section>
+
+          {loading && <p role="status">Loading services…</p>}
+          {errorMessage && <p className="save-message" role="alert">{errorMessage}</p>}
 
           <section className="service-overview" aria-labelledby="service-overview-title">
             <div className="admin-section-heading">
@@ -71,7 +106,7 @@ function AdminDashboard() {
                       <td>{formatWait(getWaitTime(service))}</td>
                       <td>{service.priority}</td>
                       <td className="queue-action-cell">
-                        <button className="table-action" type="button" onClick={() => toggleQueue(service.id)}>
+                        <button className="table-action" type="button" onClick={() => toggleQueue(service)}>
                           {service.isOpen ? "Close queue" : "Open queue"}
                         </button>
                       </td>

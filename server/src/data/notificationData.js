@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import {users} from '/usersData.js'
+import {users} from './usersData.js'
 
 export const notifications = [
     {
