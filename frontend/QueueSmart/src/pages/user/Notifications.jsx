@@ -3,28 +3,87 @@ import { useState } from "react";
 import { useAuth} from "../../auth/AuthContext.jsx"
 import NavigationBar from "../../components/NavigationBar"
 
+const API = "http://localhost:3000/"
+
+async function fetchNotifications(){
+    const response = await fetch(`${API}api/notifications/get-notifications`, {credentials: 'include'})
+    return await response.json().notifications
+}
 
 function Notifications(){
     const {user} = useAuth()
     const username = user?.username ?? "guest"
 
-    const [userNotifications, setUserNotifications] = useState(getUserNotifications(username));
+    const [userNotifications, setUserNotifications] = useState(fetchNotifications());
     const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     const readNotifications = userNotifications?.notifications?.filter(n => n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    function handleNotificationClick(notificationId) {
-        const updatedUser = markNotificationAsRead(username, notificationId);
-        if (updatedUser) {
-            setUserNotifications(updatedUser);
+    async function handleNotificationClick(notificationId) {
+        try{
+            const response = await fetch(`${API}api/notifications/mark-notification-as-read`,{
+                credentials: 'include'
+            })
+
+            const data = await response.json()
+
+            if(!response.ok){
+                setMessage({
+                    type: "error",
+                    text: data.error || "Action Failed"
+                })
+                return
+            }
+
+            setMessage({
+                type: "Success",
+                text: "Notification marked as read"
+            })
+
+            setUserNotifications(fetchNotifications())
+
+        }catch(error){
+            console.error("Notification update request failed:", error)
+
+            setMessage({
+                type: "error",
+                text: "Unable to connect to the server"
+            })
         }
     }
 
-    function handleMarkAllAsRead() {
-        let updatedUser = userNotifications;
-        unreadNotifications.forEach(notification => {
-            updatedUser = markNotificationAsRead(username, notification.id);
-        });
-        setUserNotifications(updatedUser);
+    async function handleMarkAllAsRead() {
+        try{
+            unreadNotifications.forEach(async notification => {
+                const response = await fetch(`${API}api/notifications/mark-notification-as-read`, {
+                    credentials: 'include'
+                })
+
+                const data = await response.json()
+
+                if(!response.ok){
+                    setMessage({
+                        type: "error",
+                        text: data.error || "Action Failed"
+                    })
+                    return
+                }
+            })
+
+            setMessage({
+                type: "Success",
+                text: "Notifications marked as read"
+            })
+
+            setUserNotifications(fetchNotifications())
+
+        }catch(error){
+            console.error("Notification update request failed:", error)
+
+            setMessage({
+                type: "error",
+                text: "Unable to connect to the server"
+            })
+        }
     }
 
     return(
