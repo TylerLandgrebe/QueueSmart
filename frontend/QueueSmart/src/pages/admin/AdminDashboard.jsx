@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
-import { getServices, getWaitTime, formatWait } from "./adminData";
+import { formatWait } from "./adminData";
 import "./AdminPages.css";
 
-const API = "http://localhost:3000/api/services";
+const API = "http://localhost:3000/api";
 
 function AdminDashboard() {
   const [services, setServices] = useState([]);
@@ -12,22 +12,14 @@ function AdminDashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const openCount = services.filter((service) => service.isOpen).length;
   const waitingCount = services
-    .filter((service) => service.isOpen)
-    .reduce((total, service) => total + service.queue.length, 0);
+    .reduce((total, service) => total + service.queueLength, 0);
 
   useEffect(() => {
-    fetch(API, { credentials: "include" })
+    fetch(`${API}/queues`, { credentials: "include" })
       .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Could not load services.");
-
-        // Queue-management mock data is still local for now; match it only by
-        // service ID while the service catalog itself comes from the backend.
-        const localServices = new Map(getServices().map((service) => [service.id, service]));
-        setServices(data.services.map((service) => ({
-          ...service,
-          queue: localServices.get(service.id)?.queue ?? [],
-        })));
+        if (!response.ok) throw new Error(data.error || "Could not load queues.");
+        setServices(data.queues);
       })
       .catch((error) => setErrorMessage(error.message))
       .finally(() => setLoading(false));
@@ -36,7 +28,7 @@ function AdminDashboard() {
   async function toggleQueue(service) {
     setErrorMessage("");
     try {
-      const response = await fetch(`${API}/${service.id}`, {
+      const response = await fetch(`${API}/services/${service.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -102,8 +94,8 @@ function AdminDashboard() {
                         <span>{service.duration} minutes per visitor</span>
                       </td>
                       <td><span className={`queue-state ${service.isOpen ? "is-open" : "is-closed"}`}>{service.isOpen ? "Open" : "Closed"}</span></td>
-                      <td>{service.queue.length}</td>
-                      <td>{formatWait(getWaitTime(service))}</td>
+                      <td>{service.queueLength}</td>
+                      <td>{formatWait(service.estimatedWaitMinutes)}</td>
                       <td>{service.priority}</td>
                       <td className="queue-action-cell">
                         <button className="table-action" type="button" onClick={() => toggleQueue(service)}>
