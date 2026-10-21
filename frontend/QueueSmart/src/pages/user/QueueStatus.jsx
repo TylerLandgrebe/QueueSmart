@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
-import {addNotification} from "./notificationData";
+import { createNotification } from "./notificationApi";
 import {useAuth} from "../../auth/AuthContext.jsx"
 import {
   getEntries,
@@ -40,7 +40,8 @@ function QueueStatus() {
     const updated = updateEntryStatus(entries, entry.id, "left");
     setEntries(updated);
     saveEntries(updated);
-    addNotification(username, `You have left the queue for ${entry.serviceName}.`);
+    createNotification(`You have left the queue for ${entry.serviceName}.`)
+      .catch((error) => console.error("Notification create request failed:", error));
   }
 
   return (

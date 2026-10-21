@@ -2,7 +2,7 @@ import { useState } from "react";
 import NavigationBar from "../../components/NavigationBar";
 import { getServices } from "../admin/adminData";
 import { getEntries, saveEntries, createEntry, isWaiting, getPosition } from "./queueData";
-import { addNotification } from "./notificationData";
+import { createNotification } from "./notificationApi";
 import {useAuth} from "../../auth/AuthContext.jsx"
 import "./UserPages.css";
 
@@ -37,7 +37,8 @@ function JoinQueue() {
     setEntries(updated);
     saveEntries(updated);
     const position = getPosition(updated, newEntry);
-    addNotification(username, `You joined the queue for ${service.name}. Your current position is ${position}.`);
+    createNotification(`You joined the queue for ${service.name}. Your current position is ${position}.`)
+      .catch((error) => console.error("Notification create request failed:", error));
     setMessage(`You joined the queue for ${service.name}. Check Appointments for your position.`);
   }
 

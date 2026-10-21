@@ -1,89 +1,48 @@
-import { getUserNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationData";
-import { useState } from "react";
-import { useAuth} from "../../auth/AuthContext.jsx"
+import { fetchNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationApi";
+import { useEffect, useState } from "react";
 import NavigationBar from "../../components/NavigationBar"
 
-const API = "http://localhost:3000/"
-
-async function fetchNotifications(){
-    const response = await fetch(`${API}api/notifications/get-notifications`, {credentials: 'include'})
-    return await response.json().notifications
-}
+const byNewest = (a, b) => new Date(b.timestamp) - new Date(a.timestamp);
 
 function Notifications(){
-    const {user} = useAuth()
-    const username = user?.username ?? "guest"
+    const [notifications, setNotifications] = useState([]);
+    const [message, setMessage] = useState(null);
+    const unreadNotifications = notifications.filter(n => !n.read).sort(byNewest);
+    const readNotifications = notifications.filter(n => n.read).sort(byNewest);
 
-    const [userNotifications, setUserNotifications] = useState(fetchNotifications());
-    const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    const readNotifications = userNotifications?.notifications?.filter(n => n.read).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    async function loadNotifications() {
+        try {
+            setNotifications(await fetchNotifications());
+        } catch (error) {
+            console.error("Notification fetch failed:", error);
+            setMessage({ type: "error", text: error.message });
+        }
+    }
+
+    useEffect(() => {
+        loadNotifications();
+    }, []);
 
     async function handleNotificationClick(notificationId) {
         try{
-            const response = await fetch(`${API}api/notifications/mark-notification-as-read`,{
-                credentials: 'include'
-            })
-
-            const data = await response.json()
-
-            if(!response.ok){
-                setMessage({
-                    type: "error",
-                    text: data.error || "Action Failed"
-                })
-                return
-            }
-
-            setMessage({
-                type: "Success",
-                text: "Notification marked as read"
-            })
-
-            setUserNotifications(fetchNotifications())
-
+            await markNotificationAsRead(notificationId);
+            setMessage({ type: "success", text: "Notification marked as read" });
         }catch(error){
-            console.error("Notification update request failed:", error)
-
-            setMessage({
-                type: "error",
-                text: "Unable to connect to the server"
-            })
+            console.error("Notification update request failed:", error);
+            setMessage({ type: "error", text: error.message });
         }
+        loadNotifications();
     }
 
     async function handleMarkAllAsRead() {
         try{
-            unreadNotifications.forEach(async notification => {
-                const response = await fetch(`${API}api/notifications/mark-notification-as-read`, {
-                    credentials: 'include'
-                })
-
-                const data = await response.json()
-
-                if(!response.ok){
-                    setMessage({
-                        type: "error",
-                        text: data.error || "Action Failed"
-                    })
-                    return
-                }
-            })
-
-            setMessage({
-                type: "Success",
-                text: "Notifications marked as read"
-            })
-
-            setUserNotifications(fetchNotifications())
-
+            await Promise.all(unreadNotifications.map(n => markNotificationAsRead(n.id)));
+            setMessage({ type: "success", text: "Notifications marked as read" });
         }catch(error){
-            console.error("Notification update request failed:", error)
-
-            setMessage({
-                type: "error",
-                text: "Unable to connect to the server"
-            })
+            console.error("Notification update request failed:", error);
+            setMessage({ type: "error", text: error.message });
         }
+        loadNotifications();
     }
 
     return(
@@ -98,6 +57,12 @@ function Notifications(){
                         <p className="user-subtitle">View your notifications and updates.</p>
                     </div>
                 </header>
+
+                {message && (
+                    <p className="save-message" role="status">
+                        {message.text}
+                    </p>
+                )}
 
                 <section className="notifications-summary" aria-labelledby="notifications-title">
                         <div className="user-section-heading">

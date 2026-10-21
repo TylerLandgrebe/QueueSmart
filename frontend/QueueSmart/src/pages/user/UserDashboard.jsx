@@ -1,8 +1,8 @@
 import NavigationBar from "../../components/NavigationBar"
 import { Link } from "react-router-dom"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {useAuth} from "../../auth/AuthContext.jsx"
-import { getUserNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationData"
+import { fetchNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationApi"
 import { getServices, formatWait } from "../admin/adminData"
 import {getEntries, getUserEntries, getPosition, getEstimatedWait, getQueueStage, stageLabel, getWaitingEntriesForService} from "./queueData" 
 import "./UserPages.css"
@@ -14,15 +14,23 @@ function UserDashboard(){
 
     const services = getServices();
 
-    const [userNotifications, setUserNotifications] = useState(getUserNotifications(username));
+    const [notifications, setNotifications] = useState([]);
     const [entries, setEntries] = useState(getEntries());
     const currentQueues = getUserEntries(entries, username).filter(entry => entry.status === "waiting");
-    const unreadNotifications = userNotifications?.notifications?.filter(n => !n.read) ?? [];
+    const unreadNotifications = notifications.filter(n => !n.read);
 
-    function handleNotificationClick(notificationId) {
-        const updatedUser = markNotificationAsRead(username, notificationId);
-        if (updatedUser) {
-            setUserNotifications(updatedUser);
+    useEffect(() => {
+        fetchNotifications()
+            .then(setNotifications)
+            .catch(error => console.error("Notification fetch failed:", error));
+    }, []);
+
+    async function handleNotificationClick(notificationId) {
+        try {
+            const updated = await markNotificationAsRead(notificationId);
+            setNotifications(current => current.map(n => n.id === updated.id ? updated : n));
+        } catch (error) {
+            console.error("Notification update request failed:", error);
         }
     }
 
