@@ -125,15 +125,18 @@ router.post("/register", async (req, res) => {
         const saltRounds = 10
         const hashedPassword = await bcrypt.hash(password, saltRounds)
 
-        users.push({
+        //Create new user
+        const newUser = {
             id: randomUUID(),
             username: username,
             passwordHash: hashedPassword,
             role: role
-        })
+        }
+        users.push(newUser)
 
         return res.status(201).json({
-            message: "User registered successfully"
+            message: "User registered successfully",
+            newUser
         })
 
     }catch(error){

@@ -3,15 +3,15 @@ import {users} from './usersData.js'
 
 export const notifications = [
     {
-        id: randomUUID,
-        userId: users[0].userId,
+        id: randomUUID(),
+        userId: users[0].id,
         message: "You joined the Academic Advising queue. Your current position is 3.",
         timestamp: "2026-09-30T14:15:00",
         read: false,
     },
     {
-        id: randomUUID,
-        userId: users[0].userId,
+        id: randomUUID(),
+        userId: users[0].id,
         message: "Your position in the Academic Advising queue has changed. Your new position is 2.",
         timestamp: "2026-09-30T14:16:00",
         read: false,
