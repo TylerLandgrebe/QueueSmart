@@ -1,32 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NavigationBar from "../../components/NavigationBar";
-import { getEntries, getUserEntries, formatTimestamp } from "./queueData";
-import {useAuth} from "../../auth/AuthContext.jsx"
+import { fetchHistory } from "./queueApi";
+import { formatTimestamp } from "./queueData";
 import "./UserPages.css";
 
-function getSession() {
-  try {
-    return JSON.parse(sessionStorage.getItem("queuesmart-session"));
-  } catch {
-    return null;
-  }
-}
+const ERROR_STYLE = { borderColor: "#e5c1c4", background: "#fbeeee", color: "#8a2f36" };
 
-function statusLabel(status) {
-  if (status === "served") return "Served";
-  if (status === "left") return "Left queue";
-  if (status === "cancelled") return "Cancelled";
-  return status;
+// "removed" (taken out by staff) reuses the existing red status styling
+function statusClass(status) {
+  return status === "removed" ? "cancelled" : status;
 }
 
 function History() {
-  const {user} = useAuth()
-  const username = user?.username ?? "guest"
-  const [entries] = useState(getEntries);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  const pastEntries = getUserEntries(entries, username)
-    .filter((entry) => entry.status !== "waiting")
-    .sort((a, b) => (b.endedAt ?? b.joinedAt) - (a.endedAt ?? a.joinedAt));
+  useEffect(() => {
+    let active = true;
+    fetchHistory()
+      .then((past) => {
+        if (active) setHistory(past);
+      })
+      .catch((error) => {
+        if (active) setLoadError(error.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <>
@@ -41,6 +46,12 @@ function History() {
             </div>
           </header>
 
+          {loadError && (
+            <p className="save-message" style={ERROR_STYLE} role="alert">
+              {loadError}
+            </p>
+          )}
+
           <div className="table-scroll">
             <table className="user-table">
               <thead>
@@ -52,7 +63,7 @@ function History() {
                 </tr>
               </thead>
               <tbody>
-                {pastEntries.map((entry) => (
+                {history.map((entry) => (
                   <tr key={entry.id}>
                     <td className="service-name-cell">
                       <strong>{entry.serviceName}</strong>
@@ -60,11 +71,20 @@ function History() {
                     <td>{formatTimestamp(entry.joinedAt)}</td>
                     <td>{formatTimestamp(entry.endedAt)}</td>
                     <td>
-                      <span className={`history-status ${entry.status}`}>{statusLabel(entry.status)}</span>
+                      <span className={`history-status ${statusClass(entry.status)}`}>
+                        {entry.outcome}
+                      </span>
                     </td>
                   </tr>
                 ))}
-                {pastEntries.length === 0 && (
+                {loading && (
+                  <tr>
+                    <td className="table-empty" colSpan="4">
+                      Loading history…
+                    </td>
+                  </tr>
+                )}
+                {!loading && !loadError && history.length === 0 && (
                   <tr>
                     <td className="table-empty" colSpan="4">
                       No past queue activity yet.

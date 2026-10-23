@@ -1,45 +1,73 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NavigationBar from "../../components/NavigationBar";
-import { getServices } from "../admin/adminData";
-import { getEntries, saveEntries, createEntry, isWaiting, getPosition } from "./queueData";
-import { createNotification } from "./notificationApi";
-import {useAuth} from "../../auth/AuthContext.jsx"
+import { fetchServices, fetchQueueSummary, fetchMyQueues, joinQueue } from "./queueApi";
+import { formatWait } from "./queueData";
 import "./UserPages.css";
 
-function getSession() {
-  try {
-    return JSON.parse(sessionStorage.getItem("queuesmart-session"));
-  } catch {
-    return null;
-  }
-}
+const ERROR_STYLE = { borderColor: "#e5c1c4", background: "#fbeeee", color: "#8a2f36" };
+const REFRESH_MS = 15000;
 
 function JoinQueue() {
-  const { user } = useAuth()
-  const username = user?.username ?? "guest"
-
-  const [services] = useState(getServices);
-  const [entries, setEntries] = useState(getEntries);
+  const [services, setServices] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [myQueues, setMyQueues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [query, setQuery] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(null); // { type: "success" | "error", text }
+  const [pendingServiceId, setPendingServiceId] = useState(null);
+
+  // Bumped after an action so the effect below re-fetches straight away
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Load on arrival (and after each action), then keep waiting counts fresh
+  useEffect(() => {
+    let active = true;
+
+    function refresh() {
+      Promise.all([fetchServices(), fetchQueueSummary(), fetchMyQueues()])
+        .then(([serviceList, queueSummary, mine]) => {
+          if (!active) return;
+          setServices(serviceList);
+          setSummary(queueSummary);
+          setMyQueues(mine);
+          setLoadError("");
+        })
+        .catch((error) => {
+          if (active) setLoadError(error.message);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }
+
+    refresh();
+    const timer = setInterval(refresh, REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [refreshKey]);
 
   const visibleServices = services.filter((service) =>
     service.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
-  function handleJoin(service) {
-    if (isWaiting(entries, username, service.id)) {
-      setMessage(`You're already in the queue for ${service.name}.`);
-      return;
+  async function handleJoin(service) {
+    setPendingServiceId(service.id);
+    setMessage(null);
+    try {
+      await joinQueue(service.id);
+      setMessage({
+        type: "success",
+        text: `You joined the queue for ${service.name}. Check Appointments for your position.`,
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setPendingServiceId(null);
+      setRefreshKey((key) => key + 1); // queue may have changed either way (e.g. it was just closed)
     }
-    const newEntry = createEntry(username, service);
-    const updated = [...entries, newEntry];
-    setEntries(updated);
-    saveEntries(updated);
-    const position = getPosition(updated, newEntry);
-    createNotification(`You joined the queue for ${service.name}. Your current position is ${position}.`)
-      .catch((error) => console.error("Notification create request failed:", error));
-    setMessage(`You joined the queue for ${service.name}. Check Appointments for your position.`);
   }
 
   return (
@@ -69,14 +97,27 @@ function JoinQueue() {
           </div>
 
           {message && (
-            <p className="save-message" role="status">
-              {message}
+            <p
+              className="save-message"
+              style={message.type === "error" ? ERROR_STYLE : undefined}
+              role={message.type === "error" ? "alert" : "status"}
+            >
+              {message.text}
+            </p>
+          )}
+
+          {loading && <p role="status">Loading services…</p>}
+          {loadError && (
+            <p className="save-message" style={ERROR_STYLE} role="alert">
+              {loadError}
             </p>
           )}
 
           <div className="service-card-grid">
             {visibleServices.map((service) => {
-              const alreadyWaiting = isWaiting(entries, username, service.id);
+              const alreadyWaiting = myQueues.some((entry) => entry.serviceId === service.id);
+              const waiting = summary[service.id]?.waiting ?? 0;
+              const estimatedWait = summary[service.id]?.estimatedWait ?? 0;
               return (
                 <article className="service-card" key={service.id}>
                   <div className="service-card-head">
@@ -97,13 +138,18 @@ function JoinQueue() {
                     </div>
                     <div>
                       <dt>Currently waiting</dt>
-                      <dd>{service.queueLength}</dd>
+                      <dd>{waiting}</dd>
                     </div>
                   </dl>
+                  {service.isOpen && (
+                    <p className="service-card-description">
+                      Estimated wait if you join now: {formatWait(estimatedWait)}
+                    </p>
+                  )}
                   <button
                     className="user-button"
                     type="button"
-                    disabled={!service.isOpen || alreadyWaiting}
+                    disabled={!service.isOpen || alreadyWaiting || pendingServiceId === service.id}
                     onClick={() => handleJoin(service)}
                   >
                     {alreadyWaiting ? "Already in queue" : service.isOpen ? "Join queue" : "Closed"}
@@ -111,7 +157,9 @@ function JoinQueue() {
                 </article>
               );
             })}
-            {visibleServices.length === 0 && <p className="table-empty">No matching services.</p>}
+            {!loading && !loadError && visibleServices.length === 0 && (
+              <p className="table-empty">No matching services.</p>
+            )}
           </div>
         </div>
       </main>

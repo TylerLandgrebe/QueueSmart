@@ -1,23 +1,34 @@
 import NavigationBar from "../../components/NavigationBar"
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
-import {useAuth} from "../../auth/AuthContext.jsx"
 import { fetchNotifications, markNotificationAsRead, formatTimeStamp } from "./notificationApi"
-import { getServices, formatWait } from "../admin/adminData"
-import {getEntries, getUserEntries, getPosition, getEstimatedWait, getQueueStage, stageLabel, getWaitingEntriesForService} from "./queueData" 
+import { formatWait } from "../admin/adminData"
+import { stageLabel } from "./queueData"
+import { fetchServices, fetchMyQueues, fetchQueueSummary } from "./queueApi"
 import "./UserPages.css"
 
 
 function UserDashboard(){
-    const {user} = useAuth()
-    const username = user?.username ?? "guest"
-
-    const services = getServices();
+    // Services and queue data come from the backend so they match the Services / Appointments screens
+    const [services, setServices] = useState([]);
+    const [currentQueues, setCurrentQueues] = useState([]);
+    const [queueSummary, setQueueSummary] = useState({});
 
     const [notifications, setNotifications] = useState([]);
-    const [entries, setEntries] = useState(getEntries());
-    const currentQueues = getUserEntries(entries, username).filter(entry => entry.status === "waiting");
     const unreadNotifications = notifications.filter(n => !n.read);
+
+    useEffect(() => {
+        let active = true;
+        Promise.all([fetchServices(), fetchMyQueues(), fetchQueueSummary()])
+            .then(([serviceList, mine, summary]) => {
+                if (!active) return;
+                setServices(serviceList);
+                setCurrentQueues(mine);
+                setQueueSummary(summary);
+            })
+            .catch(() => {}); // dashboard just shows empty queue sections if the server is unreachable
+        return () => { active = false; };
+    }, []);
 
     useEffect(() => {
         fetchNotifications()
@@ -71,29 +82,17 @@ function UserDashboard(){
 
                                 <tbody>
                                     {currentQueues.map((entry) => {
-                                        const service = services.find(
-                                            s => s.id === entry.serviceId
-                                        );
-
-                                        if (!service) {
-                                            return null; // Skip if service not found
-                                        }
-
-                                        const position = getPosition(entries, entry);
-                                        const estimatedWait = getEstimatedWait(entries, entry, service);
-                                        const stage = getQueueStage(position);
-
                                         return (
-                                            <tr key={entry.serviceId}>
+                                            <tr key={entry.id}>
                                                 <td className="service-name-cell">
-                                                    <strong>{service.name}</strong>
+                                                    <strong>{entry.serviceName}</strong>
                                                     <span>
-                                                        {service.duration} min service
+                                                        {entry.duration} min service
                                                     </span>
                                                 </td>
-                                                <td>#{position}</td>
-                                                <td>{formatWait(estimatedWait)}</td>
-                                                <td>{stageLabel(stage)}</td>
+                                                <td>#{entry.position}</td>
+                                                <td>{formatWait(entry.estimatedWait)}</td>
+                                                <td>{stageLabel(entry.stage)}</td>
                                                 <td className="queue-action-cell">
                                                     <Link className="table-action" to="/queue-status">
                                                         View Status
@@ -136,15 +135,16 @@ function UserDashboard(){
 
                                 <tbody>
                                     {services.filter((service) => service.isOpen).map((service) => {
-                                        const waitingEntries = getWaitingEntriesForService(entries, service.id);
-                                    
+                                        const waiting = queueSummary[service.id]?.waiting ?? 0;
+                                        const estimatedWait = queueSummary[service.id]?.estimatedWait ?? 0;
+
                                         return (
                                             <tr key={service.id}>
                                                 <td className="service-name-cell">
                                                     <strong>{service.name}</strong>
                                                 </td>
-                                                <td>{waitingEntries.length}</td>
-                                                <td>{service.isOpen ? formatWait(waitingEntries.length * service.duration) : "N/A"}</td>
+                                                <td>{waiting}</td>
+                                                <td>{service.isOpen ? formatWait(estimatedWait) : "N/A"}</td>
                                             </tr>
                                         )
                                     })}    
