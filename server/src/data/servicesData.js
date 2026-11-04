@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import db from '../db/database.js'
 
 // In-memory catalog for Assignment 3. Queue entries belong to the queue module.
-const services = [
+const seedServices = [
     {
         id: 'advising',
         name: 'Academic Advising',
@@ -27,6 +28,56 @@ const services = [
         isOpen: false
     }
 ]
+
+const insertService = db.prepare(`
+    INSERT OR IGNORE INTO services (id, name, description, duration, priority)
+    VALUES (?, ?, ?, ?, ?)
+`)
+
+const insertQueue = db.prepare(`
+    INSERT OR IGNORE INTO queues (queue_id, service_id, status)
+    VALUES (?, ?, ?)
+`)
+
+const seedDatabase = db.transaction(() => {
+    for (const service of seedServices){
+        insertService.run(
+            service.id,
+            service.name,
+            service.description,
+            service.duration,
+            service.priority
+        )
+
+        insertQueue.run(
+            `queue-${service.id}`,
+            service.id,
+            service.isOpen ? 'open' : 'closed'
+        )
+    }
+})
+
+seedDatabase()
+
+const services = db.prepare(`
+    SELECT
+        s.id,
+        s.name,
+        s.description,
+        s.duration,
+        s.priority,
+        EXISTS (
+            SELECT 1
+            FROM queues q
+            WHERE q.service_id = s.id
+                AND q.status = 'open'
+        ) AS isOpen
+    FROM services s
+    ORDER BY s.id
+`).all().map(service => ({
+    ...service,
+    isOpen: Boolean(service.isOpen)
+}))
 
 const PRIORITIES = new Set(['Low', 'Medium', 'High'])
 const FIELD_LIMITS = { name: 100, description: 500 }
@@ -82,7 +133,28 @@ function createService(input) {
         priority: input.priority,
         isOpen: true
     }
+
+    const saveServiceAndQueue = db.transaction(() => {
+        db.prepare(`
+            INSERT INTO services (id, name, description, duration, priority)
+            VALUES (?, ?, ?, ?, ?)
+        `).run(
+            service.id,
+            service.name,
+            service.description,
+            service.duration,
+            service.priority
+        )
+
+        db.prepare(`
+            INSERT INTO queues (queue_id, service_id, status)
+            VALUES (?, ?, ?)
+        `).run(`queue-${service.id}`, service.id, 'open')
+    })
+
+    saveServiceAndQueue()
     services.push(service)
+
     return service
 }
 
@@ -90,12 +162,42 @@ function updateService(id, input) {
     const service = services.find(item => item.id === id)
     if (!service) return null
 
-    for (const field of ['name', 'description']) {
-        if (field in input) service[field] = input[field].trim()
+    const updatedService = {
+        name: input.name?.trim() ?? service.name,
+        description: input.description?.trim() ?? service.description,
+        duration: input.duration ?? service.duration,
+        priority: input.priority ?? service.priority,
+        isOpen: input.isOpen ?? service.isOpen
     }
-    for (const field of ['duration', 'priority', 'isOpen']) {
-        if (field in input) service[field] = input[field]
-    }
+
+    const saveUpdates = db.transaction(() => {
+        db.prepare(`
+            UPDATE services
+            SET name = ?, description = ?, duration = ?, priority = ?
+            WHERE id = ?
+        `).run(
+            updatedService.name,
+            updatedService.description,
+            updatedService.duration,
+            updatedService.priority,
+            id
+        )
+
+        if('isOpen' in input){
+            db.prepare(`
+                UPDATE queues
+                SET status = ?
+                WHERE queue_id = ?
+            `).run(
+                updatedService.isOpen ? 'open' : 'closed',
+                `queue-${id}`
+            )
+        }
+    })
+
+    saveUpdates()
+    Object.assign(service, updatedService)
+
     return service
 }
 

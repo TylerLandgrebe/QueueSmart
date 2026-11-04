@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import { services, validateService, createService, updateService } from '../src/data/servicesData.js'
+import db from '../src/db/database.js'
 
 const startingServices = [
     {
@@ -36,7 +37,42 @@ const validService = {
 }
 
 describe('Service management business logic', () => {
+    function resetServiceDatabase() {
+        const reset = db.transaction(() => {
+            db.prepare('DELETE FROM services').run()
+
+            const insertService = db.prepare(`
+                INSERT INTO services (id, name, description, duration, priority)
+                VALUES (?, ?, ?, ?, ?)
+            `)
+
+            const insertQueue = db.prepare(`
+                INSERT INTO queues (queue_id, service_id, status)
+                VALUES (?, ?, ?)
+            `)
+
+            for (const service of startingServices) {
+                insertService.run(
+                    service.id,
+                    service.name,
+                    service.description,
+                    service.duration,
+                    service.priority
+                )
+
+                insertQueue.run(
+                    `queue-${service.id}`,
+                    service.id,
+                    service.isOpen ? 'open' : 'closed'
+                )
+            }
+        })
+
+        reset()
+    }
+
     beforeEach(() => {
+        resetServiceDatabase()
         services.splice(0, services.length, ...structuredClone(startingServices))
     })
 
@@ -64,6 +100,33 @@ describe('Service management business logic', () => {
         expect(validateService(input).errors).toHaveProperty(field)
     })
 
+    test.each([
+        ['long name', 'N'.repeat(101), 'Valid Description', 20, 'Medium'],
+        ['long description', 'Valid Name', 'D'.repeat(501), 20, 'Medium'],
+        ['invalid duration', 'Valid Name', 'Valid Description', '0', 'Medium'],
+        ['invalid priority', 'Valid Name', 'Valid Description', 20, 'Urgent']
+    ])('database rejects a service with %s', (_caseName, name, description, duration, priority) => {
+        const insertService = db.prepare(`
+            INSERT INTO services (id, name, description, duration, priority)
+            VALUES (?, ?, ?, ?, ?)
+        `)
+
+        expect(() => {
+            insertService.run('invalid-service', name, description, duration, priority)
+        }).toThrow()
+    })
+
+    test('database prevents a service from having two open queues', () =>{
+        const insertQueue = db.prepare(`
+            INSERT INTO queues (queue_id, service_id, status)
+            VALUES (?, ?, ?)
+        `)
+
+        expect(() => {
+            insertQueue.run('another-advising-queue', 'advising', 'open')
+        }).toThrow()
+    })
+
     test('validates partial service updates without requiring every field', () => {
         expect(validateService({ isOpen: false }, { partial: true }).errors).toBeNull()
         expect(validateService({ isOpen: 'false' }, { partial: true }).errors).toHaveProperty('isOpen')
@@ -75,6 +138,25 @@ describe('Service management business logic', () => {
         expect(service).toMatchObject({ ...validService, isOpen: true })
         expect(service.id).toBeTruthy()
         expect(services).toContain(service)
+
+        const savedService = db.prepare(`
+            SELECT id, name, description, duration, priority
+            FROM services
+            WHERE id = ?
+        `).get(service.id)
+
+        expect(savedService).toMatchObject({
+            id: service.id,
+            ...validService
+        })
+
+        const savedQueue = db.prepare(`
+            SELECT status
+            FROM queues
+            WHERE service_id = ?
+        `).get(service.id)
+
+        expect(savedQueue).toEqual({ status: 'open' })
     })
 
     test('trims text fields when creating a service', () => {
@@ -91,6 +173,22 @@ describe('Service management business logic', () => {
             duration: 12,
             isOpen: true
         })
+
+        const savedService = db.prepare(`
+            SELECT duration
+            FROM services
+            WHERE id = ?
+        `).get('it-help')
+
+        expect(savedService).toEqual({ duration: 12})
+
+        const savedQueue = db.prepare(`
+            SELECT status
+            FROM queues
+            WHERE queue_id = ?
+        `).get('queue-it-help')
+
+        expect(savedQueue).toEqual({ status: 'open' })
     })
 
     test('returns null when an update targets an unknown service', () => {
