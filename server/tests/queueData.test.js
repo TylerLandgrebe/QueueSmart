@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest'
-import { queueEntries, getQueue, getWaitingEntriesForService, serveNext } from '../src/data/queueData.js'
+import { getQueue, getWaitingEntriesForService, serveNext } from '../src/data/queueData.js'
+import { resetQueueEntries, insertEntry, getAllEntries } from './helpers/queueEntries.js'
 
 const service = { id: 'advising', duration: 20, priority: 'Medium' }
 const startingEntries = [
@@ -13,7 +14,7 @@ const startingEntries = [
 
 describe('Shared queue and wait-time logic', () => {
     beforeEach(() => {
-        queueEntries.splice(0, queueEntries.length, ...structuredClone(startingEntries))
+        resetQueueEntries(structuredClone(startingEntries))
     })
 
     test('orders waiting entries by priority, then arrival, within one service', () => {
@@ -23,7 +24,7 @@ describe('Shared queue and wait-time logic', () => {
     })
 
     test('keeps insertion order when priority and arrival time are equal', () => {
-        queueEntries.push({ ...startingEntries[1], id: 'tie' })
+        insertEntry({ ...startingEntries[1], id: 'tie' })
 
         const ordered = getWaitingEntriesForService(service.id)
 
@@ -31,7 +32,7 @@ describe('Shared queue and wait-time logic', () => {
     })
 
     test('places Low priority after Medium even when Low arrived earlier', () => {
-        queueEntries.push({ ...startingEntries[1], id: 'low', priority: 'Low', joinedAt: 1 })
+        insertEntry({ ...startingEntries[1], id: 'low', priority: 'Low', joinedAt: 1 })
 
         expect(getWaitingEntriesForService(service.id).at(-1).id).toBe('low')
     })
@@ -59,11 +60,11 @@ describe('Shared queue and wait-time logic', () => {
     })
 
     test('reading a queue does not reorder or decorate the stored entries', () => {
-        const before = structuredClone(queueEntries)
+        const before = getAllEntries()
 
         getQueue(service)
 
-        expect(queueEntries).toEqual(before)
+        expect(getAllEntries()).toEqual(before)
     })
 
     test('serves the next entry and retains its completed record for history', () => {
@@ -73,25 +74,25 @@ describe('Shared queue and wait-time logic', () => {
 
         expect(served).toMatchObject({ id: 'urgent', status: 'served' })
         expect(served.endedAt).toBeGreaterThanOrEqual(before)
-        expect(queueEntries).toContain(served)
-        expect(queueEntries).toHaveLength(startingEntries.length)
+        expect(getAllEntries().find(entry => entry.id === 'urgent')).toMatchObject({ status: 'served', endedAt: served.endedAt })
+        expect(getAllEntries()).toHaveLength(startingEntries.length)
         expect(getQueue(service)).toMatchObject({ queueLength: 2, estimatedWaitMinutes: 40 })
     })
 
     test('serving one service leaves other services and completed entries unchanged', () => {
-        const otherEntries = structuredClone(queueEntries.filter(entry => entry.id !== 'urgent'))
+        const otherEntries = getAllEntries().filter(entry => entry.id !== 'urgent')
 
         serveNext(service.id)
 
-        expect(queueEntries.filter(entry => entry.id !== 'urgent')).toEqual(otherEntries)
+        expect(getAllEntries().filter(entry => entry.id !== 'urgent')).toEqual(otherEntries)
     })
 
     test('serves each visitor once, then returns null without changing history', () => {
         expect([serveNext(service.id).id, serveNext(service.id).id, serveNext(service.id).id])
             .toEqual(['urgent', 'first', 'later'])
-        const history = structuredClone(queueEntries)
+        const history = getAllEntries()
 
         expect(serveNext(service.id)).toBeNull()
-        expect(queueEntries).toEqual(history)
+        expect(getAllEntries()).toEqual(history)
     })
 })

@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import request from 'supertest'
 import app from '../src/app.js'
 import { services } from '../src/data/servicesData.js'
-import { queueEntries } from '../src/data/queueData.js'
+import { resetQueueEntries, insertEntry, getAllEntries } from './helpers/queueEntries.js'
 
 const startingServices = structuredClone(services)
 const admin = request.agent(app)
@@ -17,10 +17,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
     services.splice(0, services.length, ...structuredClone(startingServices))
-    queueEntries.splice(0, queueEntries.length,
+    resetQueueEntries([
         { id: 'first', userId: 'visitor-1', username: 'first@example.com', serviceId: 'advising', priority: 'Medium', joinedAt: 1000, endedAt: null, status: 'waiting' },
         { id: 'urgent', userId: 'visitor-2', username: 'urgent@example.com', serviceId: 'advising', priority: 'High', joinedAt: 2000, endedAt: null, status: 'waiting' },
-    )
+    ])
 })
 
 describe('Admin queue APIs', () => {
@@ -31,7 +31,7 @@ describe('Admin queue APIs', () => {
         const response = await request(app)[method](path)
 
         expect(response.status).toBe(401)
-        expect(queueEntries.every(entry => entry.status === 'waiting')).toBe(true)
+        expect(getAllEntries().every(entry => entry.status === 'waiting')).toBe(true)
     })
 
     test.each([
@@ -41,7 +41,7 @@ describe('Admin queue APIs', () => {
         const response = await user[method](path)
 
         expect(response.status).toBe(403)
-        expect(queueEntries.every(entry => entry.status === 'waiting')).toBe(true)
+        expect(getAllEntries().every(entry => entry.status === 'waiting')).toBe(true)
     })
 
     test('lists every service with server-derived counts and wait estimates', async () => {
@@ -60,7 +60,7 @@ describe('Admin queue APIs', () => {
         expect(response.body.servedEntry).toMatchObject({ id: 'urgent', status: 'served', endedAt: expect.any(Number) })
         expect(response.body.queue).toMatchObject({ queueLength: 1, estimatedWaitMinutes: 20 })
         expect(response.body.queue.queue[0]).toMatchObject({ id: 'first', position: 1, estimatedWaitMinutes: 0 })
-        expect(queueEntries.find(entry => entry.id === 'urgent').status).toBe('served')
+        expect(getAllEntries().find(entry => entry.id === 'urgent').status).toBe('served')
     })
 
     test('allows staff to drain a closed queue while it stops accepting visitors', async () => {
@@ -90,7 +90,7 @@ describe('Admin queue APIs', () => {
         const response = await admin.post(`/api/queues/${serviceId}/serve-next`)
 
         expect(response.status).toBe(400)
-        expect(queueEntries.every(entry => entry.status === 'waiting')).toBe(true)
+        expect(getAllEntries().every(entry => entry.status === 'waiting')).toBe(true)
     })
 
     test.each([[[]], [{ entryId: 'first' }], [{ status: 'served' }]])('rejects unsupported serve-next input: %j', async (body) => {
@@ -98,11 +98,11 @@ describe('Admin queue APIs', () => {
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe('Serve next does not accept request fields')
-        expect(queueEntries.every(entry => entry.status === 'waiting')).toBe(true)
+        expect(getAllEntries().every(entry => entry.status === 'waiting')).toBe(true)
     })
 
     test('reads new entries from the same collection used by the user module', async () => {
-        queueEntries.push({ id: 'new', userId: 'new-user', username: 'new@example.com', serviceId: 'advising', priority: 'Medium', joinedAt: 3000, endedAt: null, status: 'waiting' })
+        insertEntry({ id: 'new', userId: 'new-user', username: 'new@example.com', serviceId: 'advising', priority: 'Medium', joinedAt: 3000, endedAt: null, status: 'waiting' })
 
         const response = await admin.get('/api/queues')
 

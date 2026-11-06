@@ -1,33 +1,123 @@
 import { randomUUID } from 'node:crypto'
+import db from '../db/database.js'
 import { services } from './servicesData.js'
 import { notifications } from './notificationData.js'
 
 // ---------------------------------------------------------------------------
-// Shared queue-entry store.
+// Shared queue-entry store (SQLite: `queue_entries` joined to `queues`).
 //
 // The user portal (join / leave / status / history) and the admin portal
-// (queue management, serve next) read and write THIS array, so both sides
-// always see the same queue.
+// (queue management, serve next) read and write the same rows, so both sides
+// always see the same queue and the data survives a server restart.
 //
-// Entry shape:
+// Entry shape returned by this module (unchanged from the in-memory version,
+// so routes, views and the front end did not need to change):
 //   {
-//     id:        string (uuid)
-//     userId:    string  -> users[].id
-//     username:  string  (shown to admins in the queue table)
-//     serviceId: string  -> services[].id
+//     id:        string (uuid)                      <- queue_entries.entry_id
+//     userId:    string  -> user_credentials.user_id
+//     username:  string  (the user's email; shown to admins in the queue table)
+//     serviceId: string  -> services.id             <- queues.service_id
 //     priority:  'High' | 'Medium' | 'Low'   (the service's priority when the user joined)
 //     joinedAt:  number  (ms since epoch)
 //     endedAt:   number | null (ms since epoch; null while waiting)
 //     status:    'waiting' | 'served' | 'left' | 'removed'
 //   }
 //
+// The API calls a user who left the queue 'left'; the database column
+// (see schema.sql) calls the same thing 'canceled'. toDbStatus()/fromDbStatus()
+// translate at this boundary and nowhere else.
+//
+// There is deliberately no stored "position" column. Position depends on
+// priority and arrival time and changes whenever anyone ahead leaves or is
+// served, so it is always computed from the waiting rows.
+//
 // Queue order within a service: priority first (High, Medium, Low), then
-// arrival time. Entries that tie keep their insertion order.
+// arrival time. Entries that tie keep their insertion order (rowid).
 // ---------------------------------------------------------------------------
 
-export const queueEntries = []
+const DB_STATUS_FOR = { left: 'canceled' }
+const API_STATUS_FOR = { canceled: 'left' }
 
-const PRIORITY_RANK = { High: 0, Medium: 1, Low: 2 }
+export const toDbStatus = status => DB_STATUS_FOR[status] ?? status
+export const fromDbStatus = status => API_STATUS_FOR[status] ?? status
+
+const ENTRY_SELECT = `
+    SELECT
+        e.entry_id  AS id,
+        e.user_id   AS userId,
+        u.email     AS username,
+        q.service_id AS serviceId,
+        e.priority  AS priority,
+        e.joined_at AS joinedAt,
+        e.ended_at  AS endedAt,
+        e.status    AS status
+    FROM queue_entries e
+    JOIN queues q            ON q.queue_id = e.queue_id
+    JOIN user_credentials u  ON u.user_id = e.user_id
+`
+
+// Priority first, then arrival time, then insertion order
+const QUEUE_ORDER = `
+    ORDER BY
+        CASE e.priority WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END,
+        e.joined_at,
+        e.rowid
+`
+
+const toEntry = row => (row ? { ...row, status: fromDbStatus(row.status) } : undefined)
+
+const selectEntryById = db.prepare(`${ENTRY_SELECT} WHERE e.entry_id = ?`)
+
+const selectWaitingForService = db.prepare(`
+    ${ENTRY_SELECT}
+    WHERE q.service_id = ? AND e.status = 'waiting'
+    ${QUEUE_ORDER}
+`)
+
+const selectWaitingForUserAndService = db.prepare(`
+    ${ENTRY_SELECT}
+    WHERE e.user_id = ? AND q.service_id = ? AND e.status = 'waiting'
+`)
+
+const selectActiveForUser = db.prepare(`
+    ${ENTRY_SELECT}
+    WHERE e.user_id = ? AND e.status = 'waiting'
+    ORDER BY e.joined_at, e.rowid
+`)
+
+const selectHistoryForUser = db.prepare(`
+    ${ENTRY_SELECT}
+    WHERE e.user_id = ? AND e.status <> 'waiting'
+    ORDER BY COALESCE(e.ended_at, e.joined_at) DESC, e.joined_at DESC, e.rowid
+`)
+
+const selectRecentlyServed = db.prepare(`
+    ${ENTRY_SELECT}
+    WHERE e.user_id = ? AND e.status = 'served'
+        AND e.ended_at <= ? AND e.ended_at >= ?
+    ORDER BY e.ended_at DESC, e.rowid
+`)
+
+// The queue a new entry joins: the service's open queue, if it has one.
+const selectOpenQueueId = db.prepare(`
+    SELECT queue_id FROM queues WHERE service_id = ? AND status = 'open'
+`)
+
+const insertEntry = db.prepare(`
+    INSERT INTO queue_entries (entry_id, queue_id, user_id, priority, joined_at, ended_at, status)
+    VALUES (?, ?, ?, ?, ?, NULL, 'waiting')
+`)
+
+// Only a waiting entry can be ended, so history can never be overwritten.
+const markEntryEnded = db.prepare(`
+    UPDATE queue_entries
+    SET status = ?, ended_at = ?
+    WHERE entry_id = ? AND status = 'waiting'
+`)
+
+export function getEntryById(entryId) {
+    return toEntry(selectEntryById.get(entryId))
+}
 
 // ---------- admin queue + wait-time logic ----------
 
@@ -47,11 +137,7 @@ export function getQueue(service) {
 }
 
 export function getWaitingEntriesForService(serviceId) {
-    return queueEntries
-        .filter(entry => entry.serviceId === serviceId && entry.status === 'waiting')
-        .sort((first, second) =>
-            PRIORITY_RANK[first.priority] - PRIORITY_RANK[second.priority]
-            || first.joinedAt - second.joinedAt)
+    return selectWaitingForService.all(serviceId).map(toEntry)
 }
 
 // Serves the person at the front of the queue. Goes through endEntry() so the
@@ -125,41 +211,25 @@ export function findService(serviceId) {
 }
 
 export function findWaitingEntry(userId, serviceId) {
-    return queueEntries.find(
-        entry =>
-            entry.userId === userId &&
-            entry.serviceId === serviceId &&
-            entry.status === ENTRY_STATUS.WAITING
-    )
+    return toEntry(selectWaitingForUserAndService.get(userId, serviceId))
 }
 
 // Every queue the user is currently waiting in, oldest join first.
 export function getUserActiveEntries(userId) {
-    return queueEntries
-        .filter(entry => entry.userId === userId && entry.status === ENTRY_STATUS.WAITING)
-        .sort((a, b) => a.joinedAt - b.joinedAt)
+    return selectActiveForUser.all(userId).map(toEntry)
 }
 
 // Past (not waiting) entries for the user, most recently ended first.
 export function getUserHistory(userId) {
-    return queueEntries
-        .filter(entry => entry.userId === userId && entry.status !== ENTRY_STATUS.WAITING)
-        .sort((a, b) => {
-            const endedDiff = (b.endedAt ?? b.joinedAt) - (a.endedAt ?? a.joinedAt)
-            return endedDiff !== 0 ? endedDiff : b.joinedAt - a.joinedAt
-        })
+    return selectHistoryForUser.all(userId).map(toEntry)
 }
 
 // Entries served within the last few minutes, newest first. Lets the Queue
 // Status screen show "Served" instead of the card silently disappearing.
 export function getRecentlyServed(userId, now = Date.now()) {
-    return queueEntries
-        .filter(entry => {
-            if (entry.userId !== userId || entry.status !== ENTRY_STATUS.SERVED) return false
-            const age = now - entry.endedAt
-            return age >= 0 && age <= RECENTLY_SERVED_WINDOW_MS
-        })
-        .sort((a, b) => b.endedAt - a.endedAt)
+    return selectRecentlyServed
+        .all(userId, now, now - RECENTLY_SERVED_WINDOW_MS)
+        .map(toEntry)
 }
 
 // ---------- position / wait ----------
@@ -203,10 +273,20 @@ export function endEntry(entry, status, endedAt = Date.now()) {
     if (!ENDED_STATUSES.has(status)) {
         throw new Error(`Invalid ended status: ${status}`)
     }
+    if (!Number.isFinite(Number(endedAt))) {
+        throw new Error(`Invalid end time: ${endedAt}`)
+    }
     if (entry.status !== ENTRY_STATUS.WAITING) return entry
 
     const waitingBefore = getWaitingEntriesForService(entry.serviceId)
     const endedIndex = waitingBefore.findIndex(item => item.id === entry.id)
+
+    const { changes } = markEntryEnded.run(toDbStatus(status), Number(endedAt), entry.id)
+    if (changes === 0) {
+        // Someone else ended it since the caller loaded it: keep what the
+        // database says, and send no notifications.
+        return Object.assign(entry, getEntryById(entry.id))
+    }
 
     entry.status = status
     entry.endedAt = Number(endedAt)
@@ -225,7 +305,8 @@ export function endEntry(entry, status, endedAt = Date.now()) {
 
 // Returns { entry } on success, or { error, code } where code is one of
 // 'invalid' | 'not-found' | 'closed' | 'duplicate'.
-export function joinQueue(userId, serviceId, username) {
+// `username` is no longer stored: it is read from user_credentials.email.
+export function joinQueue(userId, serviceId) {
     if (typeof serviceId !== 'string' || !serviceId.trim()) {
         return { error: 'A valid serviceId is required', code: 'invalid' }
     }
@@ -235,22 +316,33 @@ export function joinQueue(userId, serviceId, username) {
 
     const service = findService(serviceId)
     if (!service) return { error: 'Service not found', code: 'not-found' }
-    if (!service.isOpen) return { error: 'This queue is currently closed', code: 'closed' }
+
+    // The open queue row is the source of truth for "can people join?"
+    const openQueue = selectOpenQueueId.get(serviceId)
+    if (!service.isOpen || !openQueue) {
+        return { error: 'This queue is currently closed', code: 'closed' }
+    }
     if (findWaitingEntry(userId, serviceId)) {
         return { error: 'You are already in this queue', code: 'duplicate' }
     }
 
-    const entry = {
-        id: randomUUID(),
-        userId,
-        username: username ?? null,
-        serviceId,
-        priority: service.priority,
-        joinedAt: Date.now(),
-        endedAt: null,
-        status: ENTRY_STATUS.WAITING
+    const entryId = randomUUID()
+    try {
+        insertEntry.run(entryId, openQueue.queue_id, userId, service.priority, Date.now())
+    } catch (error) {
+        // The database enforces these too, so a double-click or two racing
+        // requests cannot create a second waiting row.
+        if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+            return { error: 'You are already in this queue', code: 'duplicate' }
+        }
+        if (error?.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            return { error: 'User not found', code: 'not-found' }
+        }
+        throw error
     }
-    queueEntries.push(entry)
+
+    // Read the saved row back so callers see exactly what was persisted
+    const entry = getEntryById(entryId)
     notifyUser(
         userId,
         `You joined the ${service.name} queue. Your current position is ${getPosition(entry)}.`
@@ -261,7 +353,8 @@ export function joinQueue(userId, serviceId, username) {
 // Returns { entry } on success, or { error, code } where code is
 // 'not-found' (unknown id, or someone else's entry) | 'not-active'.
 export function leaveQueue(userId, entryId) {
-    const entry = queueEntries.find(item => item.id === entryId && item.userId === userId)
+    const found = typeof entryId === 'string' ? getEntryById(entryId) : undefined
+    const entry = found?.userId === userId ? found : undefined
     if (!entry) return { error: 'Queue entry not found', code: 'not-found' }
     if (entry.status !== ENTRY_STATUS.WAITING) {
         return { error: 'You are no longer in this queue', code: 'not-active' }
