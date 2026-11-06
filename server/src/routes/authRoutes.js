@@ -1,7 +1,11 @@
-import { users, verifyRegister } from '../data/usersData.js'
+import {
+    findUserByUsername,
+    createUser,
+    isDuplicateUserError,
+    verifyRegister
+} from '../data/usersData.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import express from 'express'
-import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 
 const router = express.Router()
@@ -26,7 +30,7 @@ router.post('/login', async (req, res) => {
         }
 
         // Find matching user
-        const user = users.find(user => user.username === username)
+        const user = findUserByUsername(username)
 
         if(!user){
             return res.status(401).json({
@@ -111,11 +115,7 @@ router.post("/register", async (req, res) => {
         }
 
         //check that user does not already exist
-        const existingUser = users.find(
-            user => user.username === username
-        )
-
-        if(existingUser){
+        if(findUserByUsername(username)){
             return res.status(409).json({
                 error: "User already exists"
             })
@@ -125,18 +125,31 @@ router.post("/register", async (req, res) => {
         const saltRounds = 10
         const hashedPassword = await bcrypt.hash(password, saltRounds)
 
-        //Create new user
-        const newUser = {
-            id: randomUUID(),
-            username: username,
-            passwordHash: hashedPassword,
-            role: role
+        //Save new user to the database
+        let newUser
+        try{
+            newUser = createUser({
+                username: username,
+                passwordHash: hashedPassword,
+                role: role
+            })
+        }catch(error){
+            // Another request registered the same username while we were hashing
+            if(isDuplicateUserError(error)){
+                return res.status(409).json({
+                    error: "User already exists"
+                })
+            }
+            throw error
         }
-        users.push(newUser)
 
         return res.status(201).json({
             message: "User registered successfully",
-            newUser
+            newUser: {
+                id: newUser.id,
+                username: newUser.username,
+                role: newUser.role
+            }
         })
 
     }catch(error){

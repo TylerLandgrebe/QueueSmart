@@ -1,17 +1,20 @@
 import { randomUUID } from 'node:crypto'
-import {users} from './usersData.js'
+import { findUserByUsername } from './usersData.js'
+
+// Sample notifications belong to the seeded default user
+const sampleUserId = findUserByUsername('user@email.com')?.id
 
 export const notifications = [
     {
         id: randomUUID(),
-        userId: users[0].id,
+        userId: sampleUserId,
         message: "You joined the Academic Advising queue. Your current position is 3.",
         timestamp: "2026-09-30T14:15:00",
         read: false,
     },
     {
         id: randomUUID(),
-        userId: users[0].id,
+        userId: sampleUserId,
         message: "Your position in the Academic Advising queue has changed. Your new position is 2.",
         timestamp: "2026-09-30T14:16:00",
         read: false,

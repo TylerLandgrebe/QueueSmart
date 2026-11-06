@@ -3,7 +3,7 @@ import request from 'supertest'
 import bcrypt from 'bcrypt'
 
 import app from '../src/app.js'
-import { users } from '../src/data/usersData.js'
+import { resetUsers } from './helpers/users.js'
 import { services } from '../src/data/servicesData.js'
 import {
     queueEntries,
@@ -30,11 +30,10 @@ beforeAll(async () => {
 beforeEach(() => {
     queueEntries.length = 0
     services.splice(0, services.length, ...structuredClone(startingServices))
-    users.length = 0
-    users.push(
+    resetUsers([
         { id: 'alice-id', username: 'alice@email.com', passwordHash, role: 'user' },
         { id: 'bob-id', username: 'bob@email.com', passwordHash, role: 'user' }
-    )
+    ])
 })
 
 async function loginAs(username) {

@@ -2,21 +2,19 @@ import { describe, test, expect, beforeEach } from "vitest"
 import request from "supertest"
 
 import app from '../src/app.js'
-import { users } from '../src/data/usersData.js'
+import { resetUsers, getAllUsers } from './helpers/users.js'
 import bcrypt from 'bcrypt'
 
 describe("Authentication - Login", () => {
     beforeEach(async () => {
-        users.length = 0
-
         const hashedPassword = await bcrypt.hash("Password123", 10)
 
-        users.push({
+        resetUsers([{
             id: "test-user-1",
             username: "user@email.com",
             passwordHash: hashedPassword,
             role: "user"
-        })
+        }])
     })
 
     test("Login with correct credentials", async() => {
@@ -36,7 +34,7 @@ describe("Authentication - Login", () => {
         expect(response.body.user.role).toBe("user")
 
         // Make sure user id and username match
-        const userFound = users.find(user => user.id === response.body.user.id)
+        const userFound = getAllUsers().find(user => user.id === response.body.user.id)
         expect(userFound).toBeDefined()
         expect(userFound.username).toBe(user.username)
     })
@@ -92,7 +90,7 @@ describe("Authentication - Login", () => {
 describe('Authentication - Registration', () => {
     beforeEach(() => {
         //Clear users before every test
-        users.length = 0
+        resetUsers()
     })
 
     test('registers a user with valid credentials', async () => {
@@ -110,8 +108,10 @@ describe('Authentication - Registration', () => {
         // Check the HTTP response
         expect(response.status).toBe(201)
         expect(response.body.message).toBe('User registered successfully')
+        expect(response.body.newUser.passwordHash).toBeUndefined()
 
         //Check that the user was actually created
+        const users = getAllUsers()
         expect(users).toHaveLength(1)
         expect(users[0].username).toBe('test@example.com')
         expect(users[0].role).toBe('user')
@@ -138,7 +138,7 @@ describe('Authentication - Registration', () => {
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("invalid email")
-        expect(users).toHaveLength(0)
+        expect(getAllUsers()).toHaveLength(0)
     })
 
     test("Register with invalid password", async() => {
@@ -153,7 +153,7 @@ describe('Authentication - Registration', () => {
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("invalid password")
-        expect(users).toHaveLength(0)
+        expect(getAllUsers()).toHaveLength(0)
     })
 
     test("Register with an existing user", async() => {
@@ -179,6 +179,7 @@ describe('Authentication - Registration', () => {
 
         expect(response2.status).toBe(409)
         expect(response2.body.error).toBe("User already exists")
+        const users = getAllUsers()
         expect(users).toHaveLength(1)
 
         //Verify the password was not overwritten
@@ -202,14 +203,14 @@ describe('Authentication - Registration', () => {
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("Missing or Invalid username or password")
-        expect(users).toHaveLength(0)
+        expect(getAllUsers()).toHaveLength(0)
     })
 })
 
 describe('Authentication - Session Cookies', () => {
     beforeEach(() => {
         //Clear users before every test
-        users.length = 0
+        resetUsers()
     })
 
 

@@ -3,7 +3,8 @@ import request from 'supertest'
 import bcrypt from 'bcrypt'
 
 import app from '../src/app.js'
-import { users } from '../src/data/usersData.js'
+import { createUser } from '../src/data/usersData.js'
+import { resetUsers } from './helpers/users.js'
 import { services } from '../src/data/servicesData.js'
 import { notifications } from '../src/data/notificationData.js'
 import {
@@ -44,12 +45,11 @@ beforeEach(() => {
     queueEntries.length = 0
     notifications.length = 0
     services.splice(0, services.length, ...structuredClone(startingServices))
-    users.length = 0
-    users.push(
+    resetUsers([
         { id: 'alice-id', username: 'alice@email.com', passwordHash, role: 'user' },
         { id: 'bob-id', username: 'bob@email.com', passwordHash, role: 'user' },
         { id: 'admin-id', username: 'admin@email.com', passwordHash, role: 'admin' }
-    )
+    ])
 })
 
 const messagesFor = userId =>
@@ -313,7 +313,7 @@ describe('Queue data - notifications', () => {
     })
 
     test('people further back are told their new position, people ahead are not notified', () => {
-        users.push({ id: 'carol-id', username: 'carol@email.com', passwordHash, role: 'user' })
+        createUser({ id: 'carol-id', username: 'carol@email.com', passwordHash, role: 'user' })
         joinQueue('alice-id', 'advising')
         const b = joinQueue('bob-id', 'advising').entry
         joinQueue('carol-id', 'advising')
@@ -431,7 +431,7 @@ describe('Queue data - shared entry contract (user + admin modules)', () => {
     })
 
     test("each user's wait matches the admin queue's per-visitor wait for the same queue", () => {
-        users.push({ id: 'carol-id', username: 'carol@email.com', passwordHash, role: 'user' })
+        createUser({ id: 'carol-id', username: 'carol@email.com', passwordHash, role: 'user' })
         const entries = ['alice-id', 'bob-id', 'carol-id'].map(id => joinQueue(id, 'advising').entry)
         const adminView = getQueue(services.find(service => service.id === 'advising')).queue
 

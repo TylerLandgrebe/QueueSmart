@@ -1,4 +1,4 @@
-import { users } from '../data/usersData.js'
+import { findUserById } from '../data/usersData.js'
 
 
 // verify taht the request belongs to a logged in user 
@@ -11,7 +11,7 @@ export function requireAuth(req, res, next) {
         })
     }
 
-    const user = users.find(user => user.id === userId)
+    const user = findUserById(userId)
 
     if(!user) { 
         return res.status(401).json({
