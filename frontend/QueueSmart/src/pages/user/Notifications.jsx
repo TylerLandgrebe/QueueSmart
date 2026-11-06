@@ -10,13 +10,11 @@ function Notifications(){
     const unreadNotifications = notifications.filter(n => !n.read).sort(byNewest);
     const readNotifications = notifications.filter(n => n.read).sort(byNewest);
 
-    async function loadNotifications() {
-        try {
-            setNotifications(await fetchNotifications());
-        } catch (error) {
+    function loadNotifications() {
+        return fetchNotifications().then(setNotifications).catch(error => {
             console.error("Notification fetch failed:", error);
             setMessage({ type: "error", text: error.message });
-        }
+        });
     }
 
     useEffect(() => {

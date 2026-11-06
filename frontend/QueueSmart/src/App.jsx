@@ -11,13 +11,14 @@ import History from "./pages/user/History.jsx"
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx"
 import ServiceManagement from "./pages/admin/ServiceManagement.jsx"
 import QueueManagement from "./pages/admin/QueueManagement.jsx"
+import Profile from './pages/Profile.jsx'
 
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth()
 
   if (loading) return <p>Loading...</p> //wait for /me before deciding anything
   if(!user) return <Navigate to="/" replace />
-  if(user.role !== role){
+  if(role && user.role !== role){
     return <Navigate to={user.role === "admin" ? "/admin-dashboard": "/user-dashboard"} replace />
   }
 
@@ -30,6 +31,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/profile" element={<RequireRole><Profile /></RequireRole>} />
           <Route path="/user-dashboard" element={<RequireRole role="user"><UserDashboard /></RequireRole>} />
           <Route path="/join-queue" element={<RequireRole role="user"><JoinQueue /></RequireRole>} />
           <Route path="/queue-status" element={<RequireRole role="user"><QueueStatus /></RequireRole>} />

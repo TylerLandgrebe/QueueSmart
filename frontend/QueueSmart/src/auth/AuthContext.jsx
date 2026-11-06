@@ -9,13 +9,17 @@ const AuthContext = createContext(null)
 //  A component that fills the box and wraps the whole app
 export function AuthProvider({children}){
     const [user, setUser] = useState(null) // null = not logged in
+    const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true) // true until /me answers
 
     // Runs once when the app first laod (including after a page refresh)
     useEffect(() => {
         fetch(`${API}api/auth/me`, {credentials: 'include'})
             .then(response => (response.ok ? response.json(): null))
-            .then(data => setUser(data?.user ?? null))
+            .then(data => {
+                setUser(data?.user ?? null)
+                setProfile(data?.profile ?? null)
+            })
             .catch(() => setUser(null))
             .finally(() => setLoading(false))
     }, [])
@@ -29,11 +33,12 @@ export function AuthProvider({children}){
             })
         } finally {
             setUser(null)
+            setProfile(null)
         }
     }
 
     return (
-        <AuthContext.Provider value={{ user, setUser, loading, logout}}>
+        <AuthContext.Provider value={{ user, setUser, profile, setProfile, loading, logout}}>
             {children}
         </AuthContext.Provider>
     )

@@ -7,22 +7,24 @@ import {
 import { requireAuth } from '../middleware/authMiddleware.js'
 import express from 'express'
 import bcrypt from 'bcrypt'
+import { getProfile, saveProfile, validateProfile } from '../data/profileData.js'
 
 const router = express.Router()
 
 router.post('/login', async (req, res) => {
     try{
-        const username = typeof req.body.username === "string"
+        const username = typeof req.body?.username === "string"
             ? req.body.username.trim().toLowerCase()
-            : req.body.username
-        const password = req.body.password
+            : req.body?.username
+        const password = req.body?.password
 
         // Validate required fields
         if (
             typeof username !== "string" ||
             typeof password !== "string" ||
             !username.trim() ||
-            !password
+            username.length > 254 ||
+            !password || Buffer.byteLength(password, 'utf8') > 72
         ) {
             return res.status(400).json({
                 error: "Username and password are required"
@@ -74,7 +76,8 @@ router.post('/login', async (req, res) => {
                         id: user.id,
                         username: user.username,
                         role: user.role
-                    }
+                    },
+                    profile: getProfile(user.id)
                 })
             })
         })
@@ -91,8 +94,8 @@ router.post('/login', async (req, res) => {
 router.post("/register", async (req, res) => {
     try{
         if(
-            !req.body.username || 
-            !req.body.password ||
+            !req.body?.username ||
+            !req.body?.password ||
             typeof req.body.username !== "string" ||
             typeof req.body.password !== "string"
         ){
@@ -114,6 +117,9 @@ router.post("/register", async (req, res) => {
             )
         }
 
+        const profileError = validateProfile(req.body)
+        if (profileError) return res.status(400).json({ error: profileError })
+
         //check that user does not already exist
         if(findUserByUsername(username)){
             return res.status(409).json({
@@ -131,7 +137,9 @@ router.post("/register", async (req, res) => {
             newUser = createUser({
                 username: username,
                 passwordHash: hashedPassword,
-                role: role
+                role: role,
+                fullName: req.body.fullName,
+                contactInfo: req.body.contactInfo
             })
         }catch(error){
             // Another request registered the same username while we were hashing
@@ -149,7 +157,8 @@ router.post("/register", async (req, res) => {
                 id: newUser.id,
                 username: newUser.username,
                 role: newUser.role
-            }
+            },
+            profile: getProfile(newUser.id)
         })
 
     }catch(error){
@@ -166,8 +175,18 @@ router.get('/me', requireAuth, (req, res) => {
             id: req.user.id, 
             username: req.user.username,
             role: req.user.role
-        }
+        },
+        profile: getProfile(req.user.id)
     })
+})
+
+router.put('/profile', requireAuth, (req, res) => {
+    const error = validateProfile(req.body)
+    if (error) return res.status(400).json({ error })
+    if (Object.keys(req.body).some(field => !['fullName', 'contactInfo'].includes(field))) {
+        return res.status(400).json({ error: 'Unsupported profile field' })
+    }
+    return res.json({ profile: saveProfile(req.user.id, req.body) })
 })
 
 router.post('/logout', requireAuth, (req, res) => {

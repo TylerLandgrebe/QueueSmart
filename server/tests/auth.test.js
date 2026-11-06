@@ -103,7 +103,7 @@ describe('Authentication - Registration', () => {
         // Send an HTTP request to the endpoint
         const response = await request(app)
             .post('/api/auth/register')
-            .send(newUser)
+            .send({ fullName: "Test User", ...newUser })
 
         // Check the HTTP response
         expect(response.status).toBe(201)
@@ -134,7 +134,7 @@ describe('Authentication - Registration', () => {
 
         const response = await request(app)
             .post('/api/auth/register')
-            .send(newUser)
+            .send({ fullName: "Test User", ...newUser })
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("invalid email")
@@ -149,7 +149,7 @@ describe('Authentication - Registration', () => {
 
         const response = await request(app)
             .post('/api/auth/register')
-            .send(newUser)
+            .send({ fullName: "Test User", ...newUser })
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("invalid password")
@@ -169,13 +169,13 @@ describe('Authentication - Registration', () => {
 
         const response1 = await request(app)
             .post('/api/auth/register')
-            .send(newUser1)
+            .send({ fullName: "Test User", ...newUser1 })
         
         expect(response1.status).toBe(201)
 
         const response2 = await request(app)
             .post('/api/auth/register')
-            .send(newUser2)
+            .send({ fullName: "Test User", ...newUser2 })
 
         expect(response2.status).toBe(409)
         expect(response2.body.error).toBe("User already exists")
@@ -199,7 +199,7 @@ describe('Authentication - Registration', () => {
     ])("Rejects invalid registration input: %j", async (newUser) => {
         const response = await request(app)
             .post('/api/auth/register')
-            .send(newUser)
+            .send({ fullName: "Test User", ...newUser })
 
         expect(response.status).toBe(400)
         expect(response.body.error).toBe("Missing or Invalid username or password")
@@ -223,6 +223,7 @@ describe('Authentication - Session Cookies', () => {
             .post('/api/auth/register')
             .send({
                 username: "test@email.com",
+                fullName: "Test User",
                 password: "Password123"
             })
 

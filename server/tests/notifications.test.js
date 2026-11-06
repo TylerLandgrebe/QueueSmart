@@ -35,6 +35,7 @@ describe("Fetching Notifications", () => {
             .post('/api/auth/register')
             .send({
                 username: 'newUser@email.com',
+                fullName: 'New User',
                 password: "newUserPass"
             })
         
@@ -232,6 +233,7 @@ describe("Updating notifications", () => {
             .post('/api/auth/register')
             .send({
                 username: otherUsername,
+                fullName: 'Other User',
                 password: 'otherUserPass'
             })
 

@@ -6,6 +6,7 @@ import './NavigationBar.css'
 
 function ProfileMenu({ onLogout }) {
     const [isOpen, setIsOpen] = useState(false)
+    const navigate = useNavigate()
 
     return(
         <div className="profile-container">
@@ -21,6 +22,7 @@ function ProfileMenu({ onLogout }) {
             </button>
             {isOpen && (
                 <div className="profile-menu">
+                    <button type="button" onClick={() => { setIsOpen(false); navigate('/profile') }}>Edit profile</button>
                     <button type="button" onClick={onLogout}>Log out</button>
                 </div>
             )}

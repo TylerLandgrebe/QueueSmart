@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 import db from '../db/database.js'
+import { saveProfile } from './profileData.js'
 
 // Default accounts seeded on startup (username should be a valid email)
 const seedUsers = [
@@ -47,8 +48,11 @@ function findUserById(id) {
 
 // Persist a user whose password has already been hashed.
 // Throws a SQLITE_CONSTRAINT_UNIQUE error if the username is taken.
-function createUser({ id = randomUUID(), username, passwordHash, role = 'user' }) {
-    insertUser.run(id, username, passwordHash, role)
+function createUser({ id = randomUUID(), username, passwordHash, role = 'user', fullName, contactInfo }) {
+    db.transaction(() => {
+        insertUser.run(id, username, passwordHash, role)
+        if (fullName !== undefined) saveProfile(id, { fullName, contactInfo })
+    })()
     return { id, username, passwordHash, role }
 }
 
@@ -71,12 +75,12 @@ for (const seed of seedUsers) {
 // Check that email is valid format
 // Check that password is at least length of 8 characters
 function verifyRegister(username, password){
-    if (typeof username !== "string" || password.length < 8){
+    if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72){
         return "invalid password"
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(typeof password !== "string" || !emailRegex.test(username)){
+    if(typeof username !== 'string' || username.length > 254 || !emailRegex.test(username)){
         return "invalid email"
     }
 

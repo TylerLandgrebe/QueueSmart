@@ -22,6 +22,7 @@ test('admin queue creation, status, serve, and remove survive a fresh process', 
     const user = request.agent(app)
     expect((await admin.post('/api/auth/login').send({ username: 'admin@email.com', password: 'adminPass' })).status).toBe(200)
     expect((await user.post('/api/auth/login').send({ username: 'user@email.com', password: 'Password123' })).status).toBe(200)
+    expect((await user.put('/api/auth/profile').send({ fullName: 'Persistent Profile', contactInfo: '555-0100' })).status).toBe(200)
 
     const created = await admin.post('/api/services').send({
         name: 'Queue persistence', description: 'Admin queue test', duration: 7, priority: 'High'
@@ -60,7 +61,10 @@ test('admin queue creation, status, serve, and remove survive a fresh process', 
         import db from './src/db/database.js'
         import { services } from './src/data/servicesData.js'
         import { getQueue } from './src/data/queueData.js'
+        import { getProfile } from './src/data/profileData.js'
+        import { findUserByUsername } from './src/data/usersData.js'
         console.log(JSON.stringify({
+            profile: getProfile(findUserByUsername('user@email.com').id),
             queue: db.prepare('SELECT * FROM queues WHERE queue_id = ?').get(${JSON.stringify(queueId)}),
             entries: db.prepare('SELECT entry_id, status, joined_at, ended_at FROM queue_entries WHERE queue_id = ? ORDER BY rowid').all(${JSON.stringify(queueId)}),
             view: getQueue(services.find(service => service.id === ${JSON.stringify(serviceId)}))
@@ -73,6 +77,7 @@ test('admin queue creation, status, serve, and remove survive a fresh process', 
     }))
 
     expect(saved.queue).toEqual({ ...initialQueue, status: 'closed' })
+    expect(saved.profile).toEqual({ fullName: 'Persistent Profile', email: 'user@email.com', contactInfo: '555-0100' })
     expect(saved.entries).toEqual([
         { entry_id: removedId, status: 'removed', joined_at: joined.body.entry.joinedAt, ended_at: removed.body.removedEntry.endedAt },
         { entry_id: servedId, status: 'served', joined_at: rejoined.body.entry.joinedAt, ended_at: served.body.servedEntry.endedAt }
