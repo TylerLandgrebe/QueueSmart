@@ -5,8 +5,8 @@ import bcrypt from 'bcrypt'
 import app from '../src/app.js'
 import { resetUsers } from './helpers/users.js'
 import { services } from '../src/data/servicesData.js'
+import { clearQueueEntries, insertEntry } from './helpers/queueEntries.js'
 import {
-    queueEntries,
     getUserHistory,
     toHistoryView,
     joinQueue,
@@ -28,7 +28,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
-    queueEntries.length = 0
+    clearQueueEntries()
     services.splice(0, services.length, ...structuredClone(startingServices))
     resetUsers([
         { id: 'alice-id', username: 'alice@email.com', passwordHash, role: 'user' },
@@ -47,7 +47,7 @@ async function loginAs(username) {
 // ordering assertions are deterministic.
 function addEntry({ id, userId = 'alice-id', serviceId = 'advising', status, joinedAt, endedAt = null }) {
     const entry = { id, userId, serviceId, status, joinedAt, endedAt }
-    queueEntries.push(entry)
+    insertEntry(entry)
     return entry
 }
 

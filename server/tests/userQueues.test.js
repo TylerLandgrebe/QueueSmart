@@ -7,8 +7,8 @@ import { createUser } from '../src/data/usersData.js'
 import { resetUsers } from './helpers/users.js'
 import { services } from '../src/data/servicesData.js'
 import { resetNotifications, getAllNotifications } from './helpers/notifications.js'
+import { clearQueueEntries, getAllEntries } from './helpers/queueEntries.js'
 import {
-    queueEntries,
     joinQueue,
     leaveQueue,
     endEntry,
@@ -42,7 +42,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
-    queueEntries.length = 0
+    clearQueueEntries()
     resetNotifications()
     services.splice(0, services.length, ...structuredClone(startingServices))
     resetUsers([
@@ -79,7 +79,7 @@ describe('Queue data - joining', () => {
         })
         expect(entry.id).toBeTruthy()
         expect(entry.joinedAt).toEqual(expect.any(Number))
-        expect(queueEntries).toContain(entry)
+        expect(getAllEntries()).toEqual([entry])
     })
 
     test.each([undefined, null, '', '   ', 42, {}, ['advising']])(
@@ -87,7 +87,7 @@ describe('Queue data - joining', () => {
         (serviceId) => {
             const result = joinQueue('alice-id', serviceId)
             expect(result.code).toBe('invalid')
-            expect(queueEntries).toHaveLength(0)
+            expect(getAllEntries()).toHaveLength(0)
         }
     )
 
@@ -96,7 +96,7 @@ describe('Queue data - joining', () => {
 
         expect(result.code).toBe('invalid')
         expect(result.error).toContain(String(MAX_SERVICE_ID_LENGTH))
-        expect(queueEntries).toHaveLength(0)
+        expect(getAllEntries()).toHaveLength(0)
     })
 
     test('accepts a serviceId exactly at the length limit (then fails as unknown, not invalid)', () => {
@@ -105,12 +105,12 @@ describe('Queue data - joining', () => {
 
     test('rejects an unknown service', () => {
         expect(joinQueue('alice-id', 'does-not-exist').code).toBe('not-found')
-        expect(queueEntries).toHaveLength(0)
+        expect(getAllEntries()).toHaveLength(0)
     })
 
     test('rejects a closed service', () => {
         expect(joinQueue('alice-id', 'it-help').code).toBe('closed')
-        expect(queueEntries).toHaveLength(0)
+        expect(getAllEntries()).toHaveLength(0)
     })
 
     test('rejects joining the same queue twice', () => {
@@ -118,7 +118,7 @@ describe('Queue data - joining', () => {
         const second = joinQueue('alice-id', 'advising')
 
         expect(second.code).toBe('duplicate')
-        expect(queueEntries).toHaveLength(1)
+        expect(getAllEntries()).toHaveLength(1)
     })
 
     test('lets a user wait in several different queues at once', () => {
@@ -398,14 +398,14 @@ describe('Queue data - recently served', () => {
 
 describe('Queue data - shared entry contract (user + admin modules)', () => {
     test('joining records the username and the service priority at join time', () => {
-        const { entry } = joinQueue('alice-id', 'advising', 'alice@email.com')
+        const { entry } = joinQueue('alice-id', 'advising')
 
         expect(entry.username).toBe('alice@email.com')
         expect(entry.priority).toBe('Medium')
     })
 
     test('a later joiner of a higher-priority service is placed ahead of earlier lower-priority entries', () => {
-        const medium = joinQueue('alice-id', 'advising', 'alice@email.com').entry
+        const medium = joinQueue('alice-id', 'advising').entry
         services.find(service => service.id === 'advising').priority = 'High'
         const high = joinQueue('bob-id', 'advising', 'bob@email.com').entry
 
@@ -499,7 +499,7 @@ describe('Queue routes - access control', () => {
 
         expect(response.status).toBe(403)
         expect(response.body.error).toBe('User access required')
-        expect(queueEntries).toHaveLength(0)
+        expect(getAllEntries()).toHaveLength(0)
     })
 
     test('admins can still read the queue summary', async () => {
@@ -526,8 +526,8 @@ describe('Queue routes - POST /api/queues/join', () => {
             estimatedWait: 0,
             stage: 'almost-ready'
         })
-        expect(queueEntries).toHaveLength(1)
-        expect(queueEntries[0].userId).toBe('alice-id')
+        expect(getAllEntries()).toHaveLength(1)
+        expect(getAllEntries()[0].userId).toBe('alice-id')
     })
 
     test('does not leak internal fields such as userId', async () => {
@@ -556,7 +556,7 @@ describe('Queue routes - POST /api/queues/join', () => {
         const alice = await loginAs('alice@email.com')
         await alice.post('/api/queues/join').send({ serviceId: 'advising', userId: 'bob-id' })
 
-        expect(queueEntries[0].userId).toBe('alice-id')
+        expect(getAllEntries()[0].userId).toBe('alice-id')
     })
 
     test.each([
@@ -571,7 +571,7 @@ describe('Queue routes - POST /api/queues/join', () => {
 
         expect(response.status).toBe(status)
         expect(response.body.error).toBeTruthy()
-        expect(queueEntries).toHaveLength(0)
+        expect(getAllEntries()).toHaveLength(0)
     })
 
     test('rejects an over-long serviceId with 400', async () => {
@@ -596,7 +596,7 @@ describe('Queue routes - POST /api/queues/join', () => {
 
         expect(response.status).toBe(409)
         expect(response.body.error).toBe('You are already in this queue')
-        expect(queueEntries).toHaveLength(1)
+        expect(getAllEntries()).toHaveLength(1)
     })
 })
 
@@ -715,7 +715,7 @@ describe('Queue routes - POST /api/queues/:entryId/leave', () => {
         expect(response.status).toBe(200)
         expect((await alice.get('/api/queues/mine')).body.entries).toEqual([])
         expect((await bob.get('/api/queues/mine')).body.entries[0].position).toBe(1)
-        expect(queueEntries.find(entry => entry.id === joined.body.entry.id).status).toBe('left')
+        expect(getAllEntries().find(entry => entry.id === joined.body.entry.id).status).toBe('left')
     })
 
     test('returns 404 for an unknown entry', async () => {
@@ -733,7 +733,7 @@ describe('Queue routes - POST /api/queues/:entryId/leave', () => {
         const response = await bob.post(`/api/queues/${joined.body.entry.id}/leave`)
 
         expect(response.status).toBe(404)
-        expect(queueEntries[0].status).toBe('waiting')
+        expect(getAllEntries()[0].status).toBe('waiting')
     })
 
     test('returns 409 when leaving twice', async () => {
@@ -843,6 +843,6 @@ describe('User and admin portals share one queue (end to end)', () => {
         const alice = await loginAs('alice@email.com')
         await alice.post('/api/queues/join').send({ serviceId: 'advising' })
 
-        expect(queueEntries[0]).toMatchObject({ userId: 'alice-id', username: 'alice@email.com', priority: 'Medium' })
+        expect(getAllEntries()[0]).toMatchObject({ userId: 'alice-id', username: 'alice@email.com', priority: 'Medium' })
     })
 })

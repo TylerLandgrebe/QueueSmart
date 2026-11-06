@@ -86,7 +86,7 @@ router.get('/mine', requireUser, (req, res) => {
 
 // Join a service's queue.
 router.post('/join', requireUser, (req, res) => {
-    const result = joinQueue(req.user.id, req.body?.serviceId, req.user.username)
+    const result = joinQueue(req.user.id, req.body?.serviceId)
     if (result.error) {
         return res.status(USER_ERROR_STATUS[result.code]).json({ error: result.error })
     }
