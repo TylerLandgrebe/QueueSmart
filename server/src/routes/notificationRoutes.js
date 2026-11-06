@@ -1,16 +1,17 @@
 import express from 'express'
-import { randomUUID } from 'node:crypto'
 import {requireAuth} from '../middleware/authMiddleware.js'
-import {notifications} from '../data/notificationData.js'
+import {
+    getNotificationsForUser,
+    createNotification,
+    markNotificationAsRead,
+    MAX_MESSAGE_LENGTH
+} from '../data/notificationData.js'
 
 const router = express.Router();
 
 router.get("/get-notifications", requireAuth, (req, res) => {
     try {
-        const userId = req.user.id
-        const userNotifications = notifications.filter(
-            notification => notification.userId === userId
-        )
+        const userNotifications = getNotificationsForUser(req.user.id)
 
         return res.status(200).json({
             notifications: userNotifications
@@ -25,24 +26,22 @@ router.get("/get-notifications", requireAuth, (req, res) => {
 
 router.post("/create-notification", requireAuth, (req, res) => {
     try{
-        const userId = req.user.id
-        const message = req.body.message
-        const timestamp = new Date().toISOString()
+        const message = req.body?.message
 
         if (typeof message !== 'string' || !message.trim()) {
             return res.status(400).json({
                 error: "A valid notification message is required"
             })
         }
-        const notification = {
-            id: randomUUID(),
-            userId: userId,
-            message: message,
-            timestamp: timestamp,
-            read: false
+
+        // Matches the length limit on the notifications table
+        if (message.trim().length > MAX_MESSAGE_LENGTH) {
+            return res.status(400).json({
+                error: `Notification message must be ${MAX_MESSAGE_LENGTH} characters or fewer`
+            })
         }
 
-        notifications.push(notification)
+        const notification = createNotification(req.user.id, message)
 
         return res.status(201).json({
             message: "Notification created successfully",
@@ -59,17 +58,13 @@ router.post("/create-notification", requireAuth, (req, res) => {
 
 router.put('/mark-notification-as-read/:id', requireAuth, (req, res) => {
     try{
-        const {id} = req.params
-        const userId = req.user.id
+        const notification = markNotificationAsRead(req.params.id, req.user.id)
 
-        const notification = notifications.find(n => n.id === id && n.userId === userId)
         if(!notification){
             return res.status(404).json({
                 error: "Notification not found"
             })
         }
-
-        notification.read = true
 
         return res.status(200).json({
             message: "Notification updated successfully",

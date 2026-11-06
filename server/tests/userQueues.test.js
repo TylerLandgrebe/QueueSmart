@@ -6,7 +6,7 @@ import app from '../src/app.js'
 import { createUser } from '../src/data/usersData.js'
 import { resetUsers } from './helpers/users.js'
 import { services } from '../src/data/servicesData.js'
-import { notifications } from '../src/data/notificationData.js'
+import { resetNotifications, getAllNotifications } from './helpers/notifications.js'
 import {
     queueEntries,
     joinQueue,
@@ -43,7 +43,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
     queueEntries.length = 0
-    notifications.length = 0
+    resetNotifications()
     services.splice(0, services.length, ...structuredClone(startingServices))
     resetUsers([
         { id: 'alice-id', username: 'alice@email.com', passwordHash, role: 'user' },
@@ -53,7 +53,7 @@ beforeEach(() => {
 })
 
 const messagesFor = userId =>
-    notifications.filter(note => note.userId === userId).map(note => note.message)
+    getAllNotifications().filter(note => note.userId === userId).map(note => note.message)
 
 async function loginAs(username) {
     const agent = request.agent(app)
@@ -257,13 +257,13 @@ describe('Queue data - ended entries are protected', () => {
     test('ending an entry that already ended changes nothing and sends nothing', () => {
         const { entry } = joinQueue('alice-id', 'advising')
         endEntry(entry, 'served', 1000)
-        const notificationsAfterServe = notifications.length
+        const notificationsAfterServe = getAllNotifications().length
 
         endEntry(entry, 'left', 2000)
 
         expect(entry.status).toBe('served')
         expect(entry.endedAt).toBe(1000)
-        expect(notifications).toHaveLength(notificationsAfterServe)
+        expect(getAllNotifications()).toHaveLength(notificationsAfterServe)
     })
 })
 
@@ -279,6 +279,7 @@ describe('Queue data - notifications', () => {
     test('notifications use the shared notification shape', () => {
         joinQueue('alice-id', 'advising')
 
+        const notifications = getAllNotifications()
         expect(notifications[0]).toEqual({
             id: expect.any(String),
             userId: 'alice-id',
@@ -293,7 +294,7 @@ describe('Queue data - notifications', () => {
         joinQueue('alice-id', 'it-help')
         joinQueue('alice-id', 'does-not-exist')
 
-        expect(notifications).toHaveLength(0)
+        expect(getAllNotifications()).toHaveLength(0)
     })
 
     test('leaving notifies the leaver', () => {
@@ -317,11 +318,11 @@ describe('Queue data - notifications', () => {
         joinQueue('alice-id', 'advising')
         const b = joinQueue('bob-id', 'advising').entry
         joinQueue('carol-id', 'advising')
-        const beforeLeave = notifications.length
+        const beforeLeave = getAllNotifications().length
 
         leaveQueue('bob-id', b.id)
 
-        const newOnes = notifications.slice(beforeLeave)
+        const newOnes = getAllNotifications().slice(beforeLeave)
         expect(newOnes.map(note => note.userId).sort()).toEqual(['bob-id', 'carol-id'])
         expect(messagesFor('carol-id')).toContain(
             'Your position in the Academic Advising queue has changed. Your new position is 2.'
@@ -350,11 +351,11 @@ describe('Queue data - notifications', () => {
     test('other services\' queues are never notified', () => {
         const a = joinQueue('alice-id', 'advising').entry
         joinQueue('bob-id', 'financial-aid')
-        const beforeLeave = notifications.length
+        const beforeLeave = getAllNotifications().length
 
         leaveQueue('alice-id', a.id)
 
-        expect(notifications.slice(beforeLeave).map(note => note.userId)).toEqual(['alice-id'])
+        expect(getAllNotifications().slice(beforeLeave).map(note => note.userId)).toEqual(['alice-id'])
     })
 })
 
@@ -467,7 +468,7 @@ describe('Queue data - shared entry contract (user + admin modules)', () => {
 
     test('serving an empty queue returns null and notifies nobody', () => {
         expect(serveNext('advising')).toBeNull()
-        expect(notifications).toHaveLength(0)
+        expect(getAllNotifications()).toHaveLength(0)
     })
 })
 

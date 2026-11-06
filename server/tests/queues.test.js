@@ -3,12 +3,18 @@ import request from 'supertest'
 import app from '../src/app.js'
 import { services } from '../src/data/servicesData.js'
 import { queueEntries } from '../src/data/queueData.js'
+import { createUser } from '../src/data/usersData.js'
 
 const startingServices = structuredClone(services)
 const admin = request.agent(app)
 const user = request.agent(app)
 
 beforeAll(async () => {
+    // Visitors must exist so serving them can store their notifications
+    createUser({ id: 'visitor-1', username: 'first@example.com', passwordHash: 'unused' })
+    createUser({ id: 'visitor-2', username: 'urgent@example.com', passwordHash: 'unused' })
+
+
     const adminLogin = await admin.post('/api/auth/login').send({ username: 'admin@email.com', password: 'adminPass' })
     const userLogin = await user.post('/api/auth/login').send({ username: 'user@email.com', password: 'Password123' })
     expect(adminLogin.status).toBe(200)

@@ -1,5 +1,5 @@
 import { describe, test, expect} from "vitest"
-import { notifications } from '../src/data/notificationData.js'
+import { getAllNotifications } from './helpers/notifications.js'
 import request from "supertest"
 
 import app from '../src/app.js'
@@ -108,7 +108,7 @@ describe("Creating notifications", () => {
 
     expect(loginResponse.status).toBe(200)
 
-    const initialCount = notifications.length
+    const initialCount = getAllNotifications().length
 
     const response = await agent
         .post('/api/notifications/create-notification')
@@ -119,8 +119,30 @@ describe("Creating notifications", () => {
         "A valid notification message is required"
     )
 
-    expect(notifications).toHaveLength(initialCount)
+    expect(getAllNotifications()).toHaveLength(initialCount)
 })
+
+    test("Rejects a message over 1000 characters", async () => {
+        const agent = request.agent(app)
+
+        const loginResponse = await agent
+            .post('/api/auth/login')
+            .send({
+                username: 'user@email.com',
+                password: 'Password123'
+            })
+
+        expect(loginResponse.status).toBe(200)
+
+        const initialCount = getAllNotifications().length
+
+        const response = await agent
+            .post('/api/notifications/create-notification')
+            .send({ message: 'M'.repeat(1001) })
+
+        expect(response.status).toBe(400)
+        expect(getAllNotifications()).toHaveLength(initialCount)
+    })
 
     test("Unauthenticated request", async () => {
         const response = await request(app)
@@ -155,6 +177,11 @@ describe("Updating notifications", () => {
         
         expect(response.status).toBe(200)
         expect(response.body.notification.read).toBe(true)
+
+        // The change is saved, not just echoed back
+        const refetched = await agent.get('/api/notifications/get-notifications')
+        const saved = refetched.body.notifications.find(n => n.id === notifId)
+        expect(saved.read).toBe(true)
     })
 
     test("Notification does not exist", async() => {

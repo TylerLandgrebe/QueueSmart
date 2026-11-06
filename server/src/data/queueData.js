@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { services } from './servicesData.js'
-import { notifications } from './notificationData.js'
+import { createNotification } from './notificationData.js'
 
 // ---------------------------------------------------------------------------
 // Shared queue-entry store.
@@ -87,18 +87,11 @@ export const RECENTLY_SERVED_WINDOW_MS = 15 * 60 * 1000
 
 // ---------- notifications ----------
 
-// Queue events create in-app notifications in the shared notification store,
-// using the same shape as the notification routes. If the notification module
-// later exposes its own "create" function, swap it in here (one place).
+// Queue events create in-app notifications through the notification module,
+// so they're stored in the database alongside route-created notifications.
 function notifyUser(userId, message) {
     if (!userId) return
-    notifications.push({
-        id: randomUUID(),
-        userId,
-        message,
-        timestamp: new Date().toISOString(),
-        read: false
-    })
+    createNotification(userId, message)
 }
 
 function serviceName(serviceId) {
