@@ -100,13 +100,13 @@ describe('History data', () => {
     })
 
     test('falls back to the raw status for an unrecognised outcome', () => {
-        const entry = addEntry({ id: 'e', status: 'mystery', joinedAt: Date.parse('2026-10-01T10:00:00.000Z'), endedAt: Date.parse('2026-10-01T10:10:00.000Z') })
+        const entry = { id: 'e', status: 'mystery', joinedAt: Date.parse('2026-10-01T10:00:00.000Z'), endedAt: Date.parse('2026-10-01T10:10:00.000Z') }
 
         expect(toHistoryView(entry).outcome).toBe('mystery')
     })
 
     test('shows "Unknown service" if the service no longer exists', () => {
-        const entry = addEntry({ id: 'e', serviceId: 'removed-service', status: 'served', joinedAt: Date.parse('2026-10-01T10:00:00.000Z'), endedAt: Date.parse('2026-10-01T10:10:00.000Z') })
+        const entry = { id: 'e', serviceId: 'removed-service', status: 'served', joinedAt: Date.parse('2026-10-01T10:00:00.000Z'), endedAt: Date.parse('2026-10-01T10:10:00.000Z') }
 
         expect(toHistoryView(entry).serviceName).toBe('Unknown service')
     })

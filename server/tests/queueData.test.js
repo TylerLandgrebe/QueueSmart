@@ -24,7 +24,7 @@ describe('Shared queue and wait-time logic', () => {
     })
 
     test('keeps insertion order when priority and arrival time are equal', () => {
-        insertEntry({ ...startingEntries[1], id: 'tie' })
+        insertEntry({ ...startingEntries[1], id: 'tie', username: 'tie@example.com' })
 
         const ordered = getWaitingEntriesForService(service.id)
 
@@ -32,7 +32,7 @@ describe('Shared queue and wait-time logic', () => {
     })
 
     test('places Low priority after Medium even when Low arrived earlier', () => {
-        insertEntry({ ...startingEntries[1], id: 'low', priority: 'Low', joinedAt: 1 })
+        insertEntry({ ...startingEntries[1], id: 'low', username: 'low@example.com', priority: 'Low', joinedAt: 1 })
 
         expect(getWaitingEntriesForService(service.id).at(-1).id).toBe('low')
     })

@@ -4,6 +4,9 @@ import { services } from '../data/servicesData.js'
 import {
     getQueue,
     serveNext,
+    getEntryById,
+    endEntry,
+    ENTRY_STATUS,
     joinQueue,
     leaveQueue,
     getUserActiveEntries,
@@ -66,6 +69,26 @@ router.post('/:serviceId/serve-next', requireAdmin, (req, res) => {
     if (!servedEntry) return res.status(409).json({ error: 'Queue is empty' })
 
     return res.json({ servedEntry, queue: getQueue(req.service) })
+})
+
+router.post('/:serviceId/entries/:entryId/remove', requireAdmin, (req, res) => {
+    if (req.body !== undefined && (
+        !req.body || typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length > 0
+    )) {
+        return res.status(400).json({ error: 'Remove does not accept request fields' })
+    }
+
+    const entry = getEntryById(req.params.entryId)
+    if (!entry || entry.serviceId !== req.service.id) {
+        return res.status(404).json({ error: 'Queue entry not found' })
+    }
+    if (entry.status !== ENTRY_STATUS.WAITING) {
+        return res.status(409).json({ error: 'This entry is no longer waiting' })
+    }
+
+    const removedEntry = endEntry(entry, ENTRY_STATUS.REMOVED)
+    return res.json({ removedEntry, queue: getQueue(req.service) })
 })
 
 // ---------- user queue management ----------

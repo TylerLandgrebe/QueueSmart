@@ -2,6 +2,8 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import request from 'supertest'
 import app from '../src/app.js'
 import { services } from '../src/data/servicesData.js'
+import db from '../src/db/database.js'
+import { getAllNotifications, resetNotifications } from './helpers/notifications.js'
 import { createUser } from '../src/data/usersData.js'
 import { resetQueueEntries, insertEntry, getAllEntries } from './helpers/queueEntries.js'
 
@@ -22,6 +24,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
+    resetNotifications()
     services.splice(0, services.length, ...structuredClone(startingServices))
     resetQueueEntries([
         { id: 'first', userId: 'visitor-1', username: 'first@example.com', serviceId: 'advising', priority: 'Medium', joinedAt: 1000, endedAt: null, status: 'waiting' },
@@ -33,6 +36,7 @@ describe('Admin queue APIs', () => {
     test.each([
         ['get', '/api/queues'],
         ['post', '/api/queues/advising/serve-next'],
+        ['post', '/api/queues/advising/entries/urgent/remove'],
     ])('requires a session for %s %s', async (method, path) => {
         const response = await request(app)[method](path)
 
@@ -43,6 +47,7 @@ describe('Admin queue APIs', () => {
     test.each([
         ['get', '/api/queues'],
         ['post', '/api/queues/advising/serve-next'],
+        ['post', '/api/queues/advising/entries/urgent/remove'],
     ])('rejects a regular user for %s %s', async (method, path) => {
         const response = await user[method](path)
 
@@ -122,6 +127,65 @@ describe('Admin queue APIs', () => {
         const response = await admin.get('/api/queues')
 
         expect(response.body.queues[0]).toMatchObject({ duration: 5, estimatedWaitMinutes: 10 })
+    })
+
+    test('removes a visitor, preserves history, and updates positions and notifications', async () => {
+        const before = Date.now()
+        const response = await admin.post('/api/queues/advising/entries/urgent/remove')
+
+        expect(response.status).toBe(200)
+        expect(response.body.removedEntry).toMatchObject({ id: 'urgent', status: 'removed' })
+        expect(response.body.removedEntry.endedAt).toBeGreaterThanOrEqual(before)
+        expect(db.prepare('SELECT status, ended_at FROM queue_entries WHERE entry_id = ?').get('urgent'))
+            .toEqual({ status: 'removed', ended_at: response.body.removedEntry.endedAt })
+        expect(response.body.queue).toMatchObject({ queueLength: 1, estimatedWaitMinutes: 20 })
+        expect(response.body.queue.queue[0]).toMatchObject({ id: 'first', position: 1, estimatedWaitMinutes: 0 })
+        expect(getAllEntries()).toHaveLength(2)
+        expect(getAllNotifications()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ userId: 'visitor-2', message: expect.stringContaining('removed') }),
+            expect.objectContaining({ userId: 'visitor-1', message: expect.stringContaining("You're next") }),
+        ]))
+    })
+
+    test('removes a middle visitor without changing the order or other services', async () => {
+        insertEntry({ id: 'later', serviceId: 'advising', joinedAt: 3000 })
+        insertEntry({ id: 'other', serviceId: 'financial-aid', joinedAt: 500 })
+        const untouched = getAllEntries().filter(entry => ['urgent', 'other'].includes(entry.id))
+
+        const response = await admin.post('/api/queues/advising/entries/first/remove')
+
+        expect(response.status).toBe(200)
+        expect(response.body.queue.queue.map(entry => [entry.id, entry.position, entry.estimatedWaitMinutes]))
+            .toEqual([['urgent', 1, 0], ['later', 2, 20]])
+        expect(getAllEntries().filter(entry => ['urgent', 'other'].includes(entry.id))).toEqual(untouched)
+    })
+
+    test.each(['missing', 'urgent'])('rejects missing or wrong-service entries: %s', async (entryId) => {
+        const before = getAllEntries()
+        const response = await admin.post(`/api/queues/financial-aid/entries/${entryId}/remove`)
+
+        expect(response.status).toBe(404)
+        expect(getAllEntries()).toEqual(before)
+        expect(getAllNotifications()).toEqual([])
+    })
+
+    test.each(['serve-next', 'entries/urgent/remove'])('cannot overwrite ended history after %s', async (action) => {
+        expect((await admin.post(`/api/queues/advising/${action}`)).status).toBe(200)
+        const before = getAllEntries()
+        const notifications = getAllNotifications()
+
+        const response = await admin.post('/api/queues/advising/entries/urgent/remove')
+
+        expect(response.status).toBe(409)
+        expect(getAllEntries()).toEqual(before)
+        expect(getAllNotifications()).toEqual(notifications)
+    })
+
+    test.each([[[]], [{ status: 'served' }], [{ userId: 'visitor-1' }]])('rejects unsupported remove input: %j', async (body) => {
+        const response = await admin.post('/api/queues/advising/entries/urgent/remove').send(body)
+
+        expect(response.status).toBe(400)
+        expect(getAllEntries().every(entry => entry.status === 'waiting')).toBe(true)
     })
 })
 

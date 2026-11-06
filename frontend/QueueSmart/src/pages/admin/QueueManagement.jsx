@@ -18,7 +18,7 @@ function QueueManagement() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [serving, setServing] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -40,26 +40,27 @@ function QueueManagement() {
   const selectedService =
     services.find((service) => service.id === selectedServiceId) ?? services[0];
 
-  async function serveNextVisitor() {
-    if (!selectedService?.queue.length || loading || serving) return;
-    setServing(true);
+  async function updateQueue(visitor) {
+    if (!selectedService?.queue.length || loading || updating) return;
+    setUpdating(true);
     setMessage("");
     setErrorMessage("");
     try {
-      const response = await fetch(`${API}/${selectedService.id}/serve-next`, {
+      const action = visitor ? `entries/${encodeURIComponent(visitor.id)}/remove` : "serve-next";
+      const response = await fetch(`${API}/${selectedService.id}/${action}`, {
         method: "POST",
         credentials: "include",
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not serve the next visitor.");
+      if (!response.ok) throw new Error(data.error || "Could not update the queue.");
       setServices((current) => current.map((service) =>
         service.id === data.queue.id ? data.queue : service,
       ));
-      setMessage(`${data.servedEntry.username} was served.`);
+      setMessage(visitor ? `${data.removedEntry.username} was removed.` : `${data.servedEntry.username} was served.`);
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
-      setServing(false);
+      setUpdating(false);
     }
   }
 
@@ -81,9 +82,9 @@ function QueueManagement() {
             <button
               className="admin-button"
               type="button"
-              onClick={serveNextVisitor}
-              disabled={loading || serving || !selectedService?.queue.length}
-            >{serving ? "Serving…" : "Serve next"}</button>
+              onClick={() => updateQueue()}
+              disabled={loading || updating || !selectedService?.queue.length}
+            >{updating ? "Updating…" : "Serve next"}</button>
           </header>
 
           {loading && <p role="status">Loading queues…</p>}
@@ -101,7 +102,7 @@ function QueueManagement() {
                   className="service-search"
                   aria-label="Select service"
                   value={selectedService.id}
-                  disabled={loading || serving}
+                  disabled={loading || updating}
                   onChange={(event) => {
                     setSelectedServiceId(event.target.value);
                     setMessage("");
@@ -128,6 +129,7 @@ function QueueManagement() {
                       <th scope="col">Priority</th>
                       <th scope="col">Joined</th>
                       <th scope="col">Est. wait</th>
+                      <th scope="col"><span className="visually-hidden">Queue action</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -138,12 +140,21 @@ function QueueManagement() {
                         <td>{visitor.priority}</td>
                         <td>{formatJoinTime(visitor.joinedAt)}</td>
                         <td>{formatWait(visitor.estimatedWaitMinutes)}</td>
+                        <td>
+                          <button
+                            className="table-action"
+                            type="button"
+                            disabled={loading || updating}
+                            aria-label={`Remove ${visitor.username} from queue`}
+                            onClick={() => updateQueue(visitor)}
+                          >Remove</button>
+                        </td>
                       </tr>
                     ))}
 
                     {selectedService.queue.length === 0 && (
                       <tr>
-                        <td className="table-empty" colSpan="5">
+                        <td className="table-empty" colSpan="6">
                           No visitors are waiting for this service.
                         </td>
                       </tr>
